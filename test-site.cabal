@@ -8,6 +8,7 @@ library
                   , Eq
                   , Ord
                   , Show
+                  , Deriving
                   , Functor
                   , Bifunctor
                   , Profunctor
@@ -61,6 +62,7 @@ test-suite unit-tests
                   , Eq
                   , Ord
                   , Show
+                  , Deriving
                   , Functor
                   , Bifunctor
                   , Profunctor
