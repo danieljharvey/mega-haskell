@@ -1,0 +1,42 @@
+# Adapted from https://github.com/commercialhaskell/stack
+language: nix
+sudo: false
+
+env:
+  - TRAVIS_NODE_VERSION="11.6.0"
+
+cache:
+  directories:
+    - $HOME/.ghc
+    - $HOME/.cabal
+    - $HOME/.stack
+    - .stack-work
+    - $HOME/purescript/node_modules
+    - $HOME/purescript/.psc-package
+    - $HOME/purescript/.pulp-cache
+
+install:
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
+  - npm install
+  - unset CC
+  - export PATH=$HOME/.local/bin:/opt/ghc/$GHCVER/bin:$PATH
+  - ./.travis/install-stack.sh
+  - cd purescript
+  - npm install yarn
+  - yarn install
+  - cd ..
+
+script:
+  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+  - GHC_OPTIONS="-Werror"
+  - |
+    set -ex
+
+    # Run Haskell tests
+    stack --no-terminal test --fast --ghc-options="$GHC_OPTIONS"
+    set +ex
+
+    # run Purescript tests
+    cd purescript
+    yarn test
+    cd ..
