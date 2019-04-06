@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -71,11 +72,8 @@ a = vHead vectyBoy
 -- b = vHead emptyBoy
 -- Couldn't match type ‘'Zero’ with ‘'Succ n0’
 --      Expected type: Vector ('Succ n0) Int
---        Actual type: Vector 'Zero Int
+--        Actual type: Vector 'Zero Inti
 
-type family (m :: Nat) - (n :: Nat) :: Nat
-
-type family Lit (n :: Nat) :: Nat where
-  Lit Zero = Zero
-  Lit n = Succ (Lit (n - Succ Zero))
-
+type family (m :: Nat) - (n :: Nat) :: Nat where
+  m - Zero   = m
+  Succ m - Succ n = m - n

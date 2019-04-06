@@ -1,6 +1,6 @@
 {
   "name": "test-site",
-  "set": "psc-0.12.3-20190227",
+  "set": "psc-0.12.3-20190403",
   "source": "https://github.com/purescript/package-sets.git",
   "depends": [
     "console",
@@ -9,6 +9,7 @@
     "psci-support",
     "test-unit",
     "identity",
-    "free"
+    "free",
+    "typelevel"
   ]
 }
