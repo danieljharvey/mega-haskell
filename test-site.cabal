@@ -35,6 +35,7 @@ library
                   , Maybe
                   , Either
                   , Validation
+                  , Typelevel
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -49,6 +50,7 @@ library
                   , comonad
                   , text
                   , validation
+                  , vector
                   , containers
                   , hashable
                   , contravariant
@@ -88,6 +90,7 @@ test-suite unit-tests
                   , Comonad
                   , Validation
                   , Testing
+                  , Typelevel
                   , Maybe
                   , MaybeSpec
                   , Either
@@ -117,6 +120,7 @@ test-suite unit-tests
                   , Traversal
                   , TraversalSpec
                   , TestingSpec
+                  , TypelevelSpec
   build-depends: base
                 , mtl
                 , aeson
@@ -133,6 +137,7 @@ test-suite unit-tests
                 , containers
                 , time
                 , transformers
+                , vector
                 , hspec
                 , QuickCheck
                 , hspec-discover
