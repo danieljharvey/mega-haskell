@@ -1,6 +1,6 @@
 module Tests.Refined where
 
-import Prelude (Unit, discard, negate)
+import Prelude (Unit, discard, negate, (<$>))
 import Data.Either (Either(..))
 import Control.Monad.Free (Free)
 import Test.Unit (suite, test, TestF)
@@ -59,4 +59,17 @@ tests =
       Assert.equal ans (Left RefinedError)
     test "Not works correctly" do
       let ans = validate (undefined :: Not (From D9)) 8.0
-      Assert.equal ans (Right 8.0)    
+      Assert.equal ans (Right 8.0) 
+    test "Equal rejects correctly" do
+      let ans = validate (undefined :: EqualTo D9) 8.0
+      Assert.equal ans (Left RefinedError)
+    test "Equal works correctly" do
+      let ans = validate (undefined :: EqualTo D9) 9.0
+      Assert.equal ans (Right 9.0)
+    test "Whole thing works" do
+      let ans = (refine 8.0 :: Either RefinedError (Refined Positive Number))
+      Assert.equal ans (Right (Refined 8.0))
+    test "We can get the value back out..." do
+      let ans = (refine 8.0 :: Either RefinedError (Refined Positive Number))
+      Assert.equal (unrefine <$> ans) (Right 8.0) 
+
