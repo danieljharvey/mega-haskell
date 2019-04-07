@@ -6,9 +6,15 @@ import Control.Alternative ((<|>))
 import Data.Either (Either(..))
 
 import Data.Typelevel.Num.Sets (class Nat, toInt)
-import Data.Typelevel.Num.Reps (D0, D9)
+import Data.Typelevel.Num.Reps (D0)
 import Data.Typelevel.Undefined (undefined)
 import Data.Int (toNumber)
+
+import Data.Bifunctor (lmap)
+
+import Data.Argonaut (class EncodeJson)
+import Data.Argonaut.Decode.Class (class DecodeJson, decodeJson)
+import Data.Generic.Rep (class Generic)
 
 data RefinedError
   = RefinedError
@@ -33,14 +39,28 @@ newtype Refined p x
 
 derive newtype instance eqRefined :: (Eq x) => Eq (Refined p x)
 derive newtype instance showRefined :: (Show x) => Show (Refined p x)
+derive instance genericRefined :: Generic (Refined p x) _
 
-type Nice 
-  = Refined (And (Positive) (To D9)) Int
+-- for decoding we first decode the thing inside, then run our predicate on it
+instance decodeJsonRefined :: (DecodeJson x, Predicate p x) => DecodeJson (Refined p x) where
+  decodeJson a = do
+     val <- decodeJson a
+     (refineStr val :: Either String (Refined p x))
+
+-- for encoding we just want to strip away the outside layer and use whatever
+-- is inside
+derive newtype instance encodeJsonRefined :: (EncodeJson x) => EncodeJson (Refined p x)
+
+refineStr :: forall p x. (Predicate p x) => x -> Either String (Refined p x)
+refineStr x = lmap show (refine x)
 
 refine :: forall p x. (Predicate p x) => x -> Either RefinedError (Refined p x)
 refine x = do
   Refined <$> validate (undefined :: p) x
-  
+
+unsafeRefine :: forall p x. (Predicate p x) => x -> (Refined p x)
+unsafeRefine x = Refined x
+
 unrefine :: forall p x. Refined p x -> x
 unrefine (Refined x) = x
 

@@ -10,6 +10,8 @@
     "test-unit",
     "identity",
     "free",
-    "typelevel"
+    "typelevel",
+    "argonaut",
+    "generics-rep"
   ]
 }

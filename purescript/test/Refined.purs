@@ -1,7 +1,8 @@
 module Tests.Refined where
 
-import Prelude (Unit, discard, negate, (<$>))
-import Data.Either (Either(..))
+import Prelude (Unit, discard, negate, (<$>), (<<<), (==))
+import Data.Either (Either(..), isLeft)
+import Data.Maybe (Maybe(..))
 import Control.Monad.Free (Free)
 import Test.Unit (suite, test, TestF)
 import Test.Unit.Assert as Assert
@@ -9,8 +10,21 @@ import Refined
 import Data.Typelevel.Num.Reps (D1, D9)
 import Data.Typelevel.Undefined (undefined)
 
+import Data.Argonaut.Decode.Class (decodeJson)
+import Data.Argonaut.Encode.Class (encodeJson)
+
+import Data.Argonaut.Core (fromNumber, fromString, toNumber)
+
+type TestDecodeShape
+  = { idPred   :: Refined IdPred Number
+    , from9    :: Refined (From D9) Number
+    }
+
+decodeTestShape :: String -> Either String TestDecodeShape
+decodeTestShape = decodeJson <<< fromString
+
 tests :: Free TestF Unit
-tests =
+tests = do
   suite "Refined" do
     test "Fail to validate a number that is over LessThan" do
       let ans = validate (undefined :: (LessThan D9)) 10.0 
@@ -72,4 +86,21 @@ tests =
     test "We can get the value back out..." do
       let ans = (refine 8.0 :: Either RefinedError (Refined Positive Number))
       Assert.equal (unrefine <$> ans) (Right 8.0) 
-
+  suite "Json decoding refined" do
+     test "Decoding anything works" do
+       let ans = (decodeJson (fromString "hello") :: Either String String)
+       Assert.equal (ans) (Right "hello")
+     test "Works with IdPred" do
+       let ans = (decodeJson (fromNumber 8.0) :: Either String (Refined IdPred Number))
+       Assert.equal (Right 8.0) (unrefine <$> ans)
+     test "From D9 fails" do
+       let ans = (decodeJson (fromNumber 8.0) :: Either String (Refined (From D9) Number))
+       Assert.assert "Should fail the predicate" (isLeft ans)    
+     test "From D9 succeeds" do
+       let ans = (decodeJson (fromNumber 10.0) :: Either String (Refined (From D9) Number))
+       Assert.equal (Right 10.0) (unrefine <$> ans)
+  suite "Json encoding Refined" do
+     test "Encoding a value is fine" do
+        let val = (unsafeRefine 8.0 :: Refined Positive Number)
+        let encoded = encodeJson val
+        Assert.assert "poo" (toNumber encoded == (Just 8.0 :: Maybe Number))
