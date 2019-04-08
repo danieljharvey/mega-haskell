@@ -2,7 +2,6 @@ module Refined where
 
 import Prelude
 
-import Control.Alternative ((<|>))
 import Data.Either (Either(..))
 
 import Data.Typelevel.Num.Sets (class Nat, toInt)
@@ -11,19 +10,31 @@ import Data.Typelevel.Undefined (undefined)
 import Data.Int (toNumber)
 import Data.Foldable (class Foldable, length)
 import Data.Bifunctor (lmap)
-
+import Data.Tuple (Tuple(..))
 import Data.Argonaut (class EncodeJson)
 import Data.Argonaut.Decode.Class (class DecodeJson, decodeJson)
 import Data.Generic.Rep (class Generic)
 
-data RefinedError
-  = RefinedError
+data RefinedError a
+  = AndError (These (RefinedError a) (RefinedError a))
+  | OrError (RefinedError a) (RefinedError a)
+  | SizeEqualToError Int a
+  | SizeGreaterThanError Int a
+  | SizeLessThanError Int a
+  | NotError
+  | LessThanError Int a
+  | GreaterThanError Int a
+  | FromError Int a
+  | ToError Int a
+  | FromToError Int Int a
+  | EqualToError Int a
+  | NotEqualToError Int a
 
 derive instance eqRefinedError 
-  :: Eq RefinedError
+  :: (Eq a) => Eq (RefinedError a)
 
-instance showRefinedError :: Show RefinedError where
-  show RefinedError = "RefinedError"
+instance showRefinedError :: (Show a) => Show (RefinedError a) where
+  show _ = "RefinedError"
 
 -- there must be a better way to number constrain here
 class Comparable a where
@@ -34,6 +45,9 @@ instance comparableInt :: Comparable Int where
 
 instance comparableNumber :: Comparable Number where
   fromInt = toNumber
+
+class Predicate p x where
+  validate :: p -> x -> Either (RefinedError x) x
 
 newtype Refined p x
   = Refined x
@@ -47,7 +61,7 @@ derive instance genericRefined
 
 -- for decoding we first decode the thing inside, then run our predicate on it
 instance decodeJsonRefined 
-  :: (DecodeJson x, Predicate p x) 
+  :: (DecodeJson x, Show x, Predicate p x) 
   => DecodeJson (Refined p x) where
   decodeJson a = do
      val <- decodeJson a
@@ -58,32 +72,49 @@ instance decodeJsonRefined
 derive newtype instance encodeJsonRefined 
   :: (EncodeJson x) => EncodeJson (Refined p x)
 
+-- helper because i am too lazy to find the package
+data These a b
+  = This a
+  | That b
+  | These a b
+
+derive instance eqThese 
+  :: (Eq a, Eq b) 
+  => Eq (These a b)
+derive instance ordThese 
+  :: (Ord a, Ord b) 
+  => Ord (These a b)
+
+--- the useful things
+
+-- used by decode json for it's errors
 refineStr 
-  :: forall p x. (Predicate p x) 
-   => x 
-   -> Either String (Refined p x)
+  :: forall p x. (Predicate p x)
+  => (Show x) 
+  => x 
+  -> Either String (Refined p x)
 refineStr x = lmap show (refine x)
 
+-- the regular way in which one would turn a value into a Refined value
 refine 
   :: forall p x. (Predicate p x) 
   => x 
-  -> Either RefinedError (Refined p x)
+  -> Either (RefinedError x) (Refined p x)
 refine x = do
   Refined <$> validate (undefined :: p) x
 
+-- the Bad Boy way to make a Refined (for testing etc)
 unsafeRefine 
   :: forall p x. (Predicate p x) 
    => x 
    -> (Refined p x)
 unsafeRefine x = Refined x
 
+-- let's get that value out
 unrefine 
   :: forall p x. Refined p x 
    -> x
 unrefine (Refined x) = x
-
-class Predicate p x where
-  validate :: p -> x -> Either RefinedError x
 
 ---
 
@@ -102,12 +133,16 @@ instance predicateAnd
   :: (Predicate l x, Predicate r x) 
   => Predicate (And l r) x where
     validate _ x
-      = (first >=> second) x
+      = case Tuple first second of
+          (Tuple (Left a) (Left b))   -> Left (AndError (These a b))
+          (Tuple (Left a) (Right _))  -> Left (AndError (This a))
+          (Tuple (Right _) (Left b))  -> Left (AndError (That b))
+          (Tuple (Right _) (Right _)) -> Right x
       where
-        first x'
-          = validate (undefined :: l) x'
-        second x'
-          = validate (undefined :: r) x'
+        first
+          = validate (undefined :: l) x
+        second
+          = validate (undefined :: r) x
 
 ---
 
@@ -117,12 +152,14 @@ instance predicateOr
   :: (Predicate l x, Predicate r x) 
   => Predicate (Or l r) x where
     validate _ x
-      = first x <|> second x
+      = case Tuple first second of
+          (Tuple (Left a) (Left b))   -> Left (OrError a b)
+          _                           -> Right x
       where
-        first x'
-          = validate (undefined :: l) x'
-        second x'
-          = validate (undefined :: r) x'
+        first
+          = validate (undefined :: l) x
+        second
+          = validate (undefined :: r) x
 
 ---
 
@@ -134,7 +171,7 @@ instance predicateSizeEqualTo
     validate _ x
       = case length x == val of
           true  -> Right x
-          false -> Left RefinedError
+          false -> Left (SizeEqualToError val x)
       where
         val :: Int
         val = toInt (undefined :: n)
@@ -149,10 +186,10 @@ instance predicateSizeGreaterThan
     validate _ x
       = case length x > val of
           true  -> Right x
-          false -> Left RefinedError
+          false -> Left (SizeGreaterThanError val x)
       where
-        val :: Int
-        val = toInt (undefined :: n)
+        val 
+          = toInt (undefined :: n)
 
 ---
 
@@ -164,10 +201,10 @@ instance predicateSizeLessThan
     validate _ x
       = case length x < val of
           true  -> Right x
-          false -> Left RefinedError
+          false -> Left (SizeLessThanError val x)
       where
-        val :: Int
-        val = toInt (undefined :: n)
+        val 
+          = toInt (undefined :: n)
 
 ---
 
@@ -179,7 +216,7 @@ instance predicateNot
   validate _ x
     = case validate (undefined :: a) x of
         Left _ -> Right x
-        _      -> Left RefinedError
+        _      -> Left NotError
 
 ---
 
@@ -191,7 +228,7 @@ instance predicateLessThan
   validate _ x
     = case x < (fromInt val) of
         true  -> Right x
-        false -> Left RefinedError
+        false -> Left (LessThanError val x)
     where
       val 
         = toInt (undefined :: n)
@@ -207,7 +244,7 @@ instance predicateGreaterThan
     validate _ x
       = case x > (fromInt val) of
           true -> Right x
-          false -> Left RefinedError
+          false -> Left (GreaterThanError val x)
       where
         val 
           = toInt (undefined :: n)
@@ -222,7 +259,7 @@ instance predicateFrom
   validate _ x
     = case x >= (fromInt val) of
         true  -> Right x
-        false -> Left RefinedError
+        false -> Left (FromError val x)
     where
       val 
         = toInt (undefined :: n)
@@ -237,7 +274,7 @@ instance predicateTo
   validate _ x
     = case x <= (fromInt val) of
         true  -> Right x
-        false -> Left RefinedError
+        false -> Left (ToError val x)
     where
       val 
         = toInt (undefined :: n)
@@ -252,7 +289,7 @@ instance predicateFromTo
   validate _ x
     = case (x >= fromInt lower) && (x <= fromInt upper) of
         true  -> Right x
-        false -> Left RefinedError
+        false -> Left (FromToError lower upper x)
     where
       lower 
         = toInt (undefined :: m)
@@ -269,7 +306,7 @@ instance predicateEqualTo
   validate _ x
     = case x == (fromInt val) of
         true -> Right x
-        false -> Left RefinedError
+        false -> Left (EqualToError val x)
     where
       val 
         = toInt (undefined :: n)
@@ -284,7 +321,7 @@ instance predicateNotEqualTo
   validate _ x
     = case x /= (fromInt val) of
         true -> Right x
-        false -> Left RefinedError
+        false -> Left (NotEqualToError val x)
     where
       val 
         = toInt (undefined :: n)
