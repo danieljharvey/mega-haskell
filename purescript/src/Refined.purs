@@ -7,13 +7,14 @@ import Data.Either (Either(..))
 import Data.Typelevel.Num.Sets (class Nat, toInt)
 import Data.Typelevel.Num.Reps (D0, D1)
 import Data.Typelevel.Undefined (undefined)
-import Data.Int (toNumber)
 import Data.Foldable (class Foldable, length)
 import Data.Bifunctor (lmap)
 import Data.Tuple (Tuple(..))
 import Data.Argonaut (class EncodeJson)
 import Data.Argonaut.Decode.Class (class DecodeJson, decodeJson)
 import Data.Generic.Rep (class Generic)
+import Data.Monoid (power)
+import Data.Monoid.Additive (Additive(..))
 
 data RefinedError a
   = AndError (These (RefinedError a) (RefinedError a))
@@ -34,17 +35,43 @@ derive instance eqRefinedError
   :: (Eq a) => Eq (RefinedError a)
 
 instance showRefinedError :: (Show a) => Show (RefinedError a) where
-  show _ = "RefinedError"
+  show (AndError (These a b)) 
+    = "And (" <> show a <> " && " <> show b <> ")"
+  show (AndError (This a))    
+    = show a
+  show (AndError (That b))    
+    = show b
+  show (OrError a b)          
+    = "Or (" <> show a <> " && " <> show b <> ")"
+  show (SizeEqualToError n a) 
+    = show a <> "'s length should equal " <> show n <> " but does not."
+  show (SizeGreaterThanError n a)
+    = show a <> "'s length should be greater than " <> show n <> " but is not."
+  show (SizeLessThanError n a)
+    = show a <> "'es length should be less than " <> show n <> " but is not."
+  show (NotError)
+    = "RefinedError with Not"
+  show (LessThanError n a)
+     = show a <> " should be less than " <> show n <> " but is not."
+  show (GreaterThanError n a)
+     = show a <> " should be greater than " <> show n <> " but is not."
+  show (FromError n a)
+     = show a <> " should be equal to or greater than " <> show n <> " but is not."
+  show (ToError n a)
+     = show a <> " should be equal to or less than " <> show n <> " but is not."
+  show (FromToError m n a)
+     = show a <> " should be equal to or greater than " <> show m <> " and equal to or less than " <> show n <> " but is not."
+  show (EqualToError n a)
+     = show a <> " should be equal to " <> show n <> " but is not."
+  show (NotEqualToError n a)
+     = show a <> " should not be equal to " <> show n <> " but it is."
 
--- there must be a better way to number constrain here
-class Comparable a where
-  fromInt :: Int -> a
 
-instance comparableInt :: Comparable Int where
-  fromInt x = x 
-
-instance comparableNumber :: Comparable Number where
-  fromInt = toNumber
+fromInt :: forall a. (Ring a) => Int -> a
+fromInt i
+  = a
+  where
+    (Additive a) = power (Additive one) i
 
 class Predicate p x where
   validate :: p -> x -> Either (RefinedError x) x
@@ -223,7 +250,7 @@ instance predicateNot
 data LessThan n
 
 instance predicateLessThan 
-  :: (Nat n, Ord x, Comparable x) 
+  :: (Nat n, Ord x, Ring x) 
   => Predicate (LessThan n) x where
   validate _ x
     = case x < (fromInt val) of
@@ -238,7 +265,7 @@ instance predicateLessThan
 data GreaterThan n
 
 instance predicateGreaterThan 
-  :: (Nat n, Ord x, Comparable x) 
+  :: (Nat n, Ord x, Ring x) 
   => Predicate (GreaterThan n) x
   where
     validate _ x
@@ -254,7 +281,7 @@ instance predicateGreaterThan
 data From n
 
 instance predicateFrom 
-  :: (Nat n, Ord x, Comparable x) 
+  :: (Nat n, Ord x, Ring x) 
   => Predicate (From n) x where
   validate _ x
     = case x >= (fromInt val) of
@@ -269,7 +296,7 @@ instance predicateFrom
 data To n
 
 instance predicateTo 
-  :: (Nat n, Ord x, Comparable x) 
+  :: (Nat n, Ord x, Ring x) 
   => Predicate (To n) x where
   validate _ x
     = case x <= (fromInt val) of
@@ -284,7 +311,7 @@ instance predicateTo
 data FromTo m n
 
 instance predicateFromTo 
-  :: (Nat n, Nat m, Ord x, Comparable x) 
+  :: (Nat n, Nat m, Ord x, Ring x) 
   => Predicate (FromTo m n) x where
   validate _ x
     = case (x >= fromInt lower) && (x <= fromInt upper) of
@@ -301,7 +328,7 @@ instance predicateFromTo
 data EqualTo n
 
 instance predicateEqualTo 
-  :: (Nat n, Eq x, Comparable x) 
+  :: (Nat n, Eq x, Ring x) 
   => Predicate (EqualTo n) x where
   validate _ x
     = case x == (fromInt val) of
@@ -316,7 +343,7 @@ instance predicateEqualTo
 data NotEqualTo n
 
 instance predicateNotEqualTo 
-  :: (Nat n, Eq x, Comparable x) 
+  :: (Nat n, Eq x, Ring x) 
   => Predicate (NotEqualTo n) x where
   validate _ x
     = case x /= (fromInt val) of
