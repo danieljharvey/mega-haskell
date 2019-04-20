@@ -1,27 +1,27 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor    #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes    #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE DeriveFunctor          #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeApplications       #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 module Free where
 
 import           Control.Monad.Free
 import qualified Control.Monad.State       as St
 import           Control.Monad.Writer.Lazy hiding (Sum)
 import           Data.Functor.Sum
+import           Data.Kind
 import           Network.Curl
 import           Prelude
 import           System.Exit
-import Data.Kind
 
 -- our first data type
 
@@ -113,7 +113,7 @@ fetchAction = do
 
 interpretState :: Reducer State a -> St.State State a
 interpretState = foldFree interpretReducerState
-    
+
 interpretReducerState :: ReducerF State a -> St.State State a
 interpretReducerState prog'
   = case prog' of
@@ -158,23 +158,23 @@ type Combined s a
   = Free (CombinedF s) a
 
 write' :: String -> Combined s ()
-write' str 
+write' str
   = liftF $ InL $ Write str ()
 
 read' :: Combined s String
-read' 
+read'
   = liftF $ InL $ Read id
 
 modify' :: (s -> s) -> Combined s ()
-modify' f 
+modify' f
   = liftF $ InR $ Modify f ()
 
 fetch' :: String -> Combined s String
-fetch' url 
+fetch' url
   = liftF $ InR $ Fetch url id
 
 get' :: Combined s s
-get' 
+get'
   = liftF $ InR $ Get id
 
 loadAndLog :: Combined State ()
@@ -190,17 +190,17 @@ loadAndLog = do
 -- let's make an interpreter from ConsoleF to any MonadIO
 -- this will work with any Monad stack that includes IO
 
-interpretConsoleStateIO 
-  :: (MonadIO m) 
-  => ConsoleF a 
+interpretConsoleStateIO
+  :: (MonadIO m)
+  => ConsoleF a
   -> m a
 interpretConsoleStateIO prog'
   = case prog' of
       Write s a -> liftIO $ Prelude.putStrLn s >> pure a
       Read a    -> liftIO $ a <$> Prelude.getLine
 
-interpretCombinedStateIO 
-  :: Combined State a 
+interpretCombinedStateIO
+  :: Combined State a
   -> St.StateT State IO a
 interpretCombinedStateIO = foldFree interpret'
   where
@@ -209,22 +209,27 @@ interpretCombinedStateIO = foldFree interpret'
           InL a -> interpretConsoleStateIO a
           InR a -> interpretReducerStateIO a
 
-
+-- Infix version of Sum functor
 type f :+: g = Sum f g
 
+-- our new functor, using both things
 type LumpF s = ReducerF s :+: ConsoleF
 
 type Lump s a = Free (LumpF s) a
 
-class Lifty' (big :: Type -> Type) (small :: Type -> Type) (directions :: Maybe [Direction]) | big directions -> small where
+class Lifty'
+  (big :: Type -> Type)
+  (small :: Type -> Type)
+  (directions :: Maybe [Direction])
+  | big directions -> small where
   lifty' :: small a -> big a
 
 data (x :: k) :~: (y :: k) where
   Refl :: x :~: x
 
-
-loadAndLogF 
-  :: (Functor (big State), Lifty (big State) ConsoleF, Lifty (big State) (ReducerF State)) 
+-- example using this new Lifty thing
+loadAndLogF
+  :: (Functor (big State), Lifty (big State) ConsoleF, Lifty (big State) (ReducerF State))
   => Free (big State) ()
 loadAndLogF = do
   modifyF (\s
@@ -235,37 +240,39 @@ loadAndLogF = do
   modifyF (\s
     -> s { loading = False, string = Just str })
 
-writeF 
-  :: (Functor big, Lifty big ConsoleF) 
-  => String 
+
+-- now we can write our constructors for these new free using constraints
+writeF
+  :: (Functor big, Lifty big ConsoleF)
+  => String
   -> Free big ()
-writeF str 
+writeF str
   = liftF $ lifty $ Write str ()
 
-readF 
-  :: (Functor big, Lifty big ConsoleF) 
+readF
+  :: (Functor big, Lifty big ConsoleF)
   => Free big String
-readF 
+readF
   = liftF $ lifty $ Read id
 
-modifyF 
-  :: (Functor (big s), Lifty (big s) (ReducerF s)) 
-  => (s -> s) 
+modifyF
+  :: (Functor (big s), Lifty (big s) (ReducerF s))
+  => (s -> s)
   -> Free (big s) ()
-modifyF f 
+modifyF f
   = liftF $ lifty $ Modify f ()
 
-fetchF 
-  :: forall big s. (Functor (big s), Lifty (big s) (ReducerF s)) 
-  => String 
+fetchF
+  :: forall big s. (Functor (big s), Lifty (big s) (ReducerF s))
+  => String
   -> Free (big s) String
-fetchF url 
+fetchF url
   = liftF $ lifty $ (Fetch @s) url id
 
-getF 
-  :: (Functor (big s), Lifty (big s) (ReducerF s)) 
-  => Free (big s) s 
-getF 
+getF
+  :: (Functor (big s), Lifty (big s) (ReducerF s))
+  => Free (big s) s
+getF
   = liftF $ lifty $ Get id
 
 
@@ -288,7 +295,7 @@ class Lifty (big :: Type -> Type) (small :: Type -> Type) where
 
 type family Breadcrums (big :: Type -> Type) (small :: Type -> Type) :: Maybe [Direction] where
   Breadcrums a a = 'Just '[]
-  Breadcrums (Sum x y) a = MapDirection L (Breadcrums x a) 
+  Breadcrums (Sum x y) a = MapDirection L (Breadcrums x a)
                        <|> MapDirection R (Breadcrums y a)
   Breadcrums _ _ = 'Nothing
 
@@ -305,11 +312,11 @@ data Direction = L | R
 instance (big ~ small) => Lifty' big small ('Just '[]) where
   lifty' a = a
 
-instance (Lifty' l small ('Just xs)) 
+instance (Lifty' l small ('Just xs))
   => Lifty' (Sum l r) small ('Just (L ': xs)) where
     lifty' a = InL (lifty' @_ @_ @(Just xs) a)
 
-instance (Lifty' r small ('Just xs)) 
+instance (Lifty' r small ('Just xs))
   => Lifty' (Sum l r) small ('Just (R ': xs)) where
     lifty' a = InR (lifty' @_ @_ @(Just xs) a)
 

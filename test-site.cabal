@@ -36,6 +36,7 @@ library
                   , Either
                   , Validation
                   , Typelevel
+                  , Static
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -56,6 +57,7 @@ library
                   , contravariant
                   , time
                   , transformers
+                  , ghc-prim
   default-language: Haskell2010
 
 test-suite unit-tests
@@ -117,6 +119,7 @@ test-suite unit-tests
                   , ValidationSpec
                   , WriteSpec
                   , NonemptySpec
+                  , Static
                   , Traversal
                   , TraversalSpec
                   , TestingSpec
@@ -141,3 +144,4 @@ test-suite unit-tests
                 , hspec
                 , QuickCheck
                 , hspec-discover
+                , ghc-prim
