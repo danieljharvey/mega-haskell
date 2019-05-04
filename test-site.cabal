@@ -37,6 +37,7 @@ library
                   , Validation
                   , Typelevel
                   , Static
+                  , Redux
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -90,6 +91,7 @@ test-suite unit-tests
                   , Nonempty
                   , Contravariant
                   , Comonad
+                  , Redux
                   , Validation
                   , Testing
                   , Typelevel

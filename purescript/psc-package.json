@@ -12,6 +12,7 @@
     "free",
     "typelevel",
     "argonaut",
-    "generics-rep"
+    "generics-rep",
+    "variant"
   ]
 }
