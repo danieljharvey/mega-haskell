@@ -116,6 +116,7 @@ h :: State
 h = tryReducer countReducer defaultState (encodeJson Up)
 
 -- record of reducers
+-- can this type be generalised to a record of (s -> a -> s) functions?
 reducers 
   :: { login :: State -> Login -> State
      , count :: State -> Counting -> State
@@ -124,6 +125,8 @@ reducers
   = { login : loginReducer
     , count : countReducer
     }
+
+
 
 data RunReducer = RunReducer
 
