@@ -118,3 +118,4 @@ d = processIfMatching loginReducer (StartLogin "paul" "imissbarry") defaultState
 e = processIfMatching countReducer Up defaultState
 
 -- how do I express the big list of reducers
+

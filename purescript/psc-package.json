@@ -13,6 +13,8 @@
     "typelevel",
     "argonaut",
     "generics-rep",
-    "variant"
+    "variant",
+    "argonaut-generic",
+    "heterogeneous"
   ]
 }
