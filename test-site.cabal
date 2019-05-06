@@ -142,6 +142,7 @@ test-suite unit-tests
                 , contravariant
                 , validation
                 , containers
+                , text
                 , time
                 , transformers
                 , vector
