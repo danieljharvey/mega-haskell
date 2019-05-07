@@ -1,12 +1,13 @@
-{-# LANGUAGE AllowAmbiguousTypes   #-}
-{-# LANGUAGE DeriveAnyClass        #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeApplications      #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE AllowAmbiguousTypes    #-}
+{-# LANGUAGE DeriveAnyClass         #-}
+{-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeApplications       #-}
+{-# LANGUAGE UndecidableInstances   #-}
 module Schema where
 
 import           Control.Applicative
@@ -35,7 +36,7 @@ data Pet
   | Horse
   deriving (Generic, FromJSON)
 
--- this
+-- V3
 
 data NewUser
   = NewUser
@@ -54,6 +55,10 @@ data OldPet
   | OldCat
   | NoPet
   deriving (Generic, FromJSON)
+
+
+
+-- V2
 
 data OldUser
   = OldUser
@@ -92,6 +97,7 @@ decodeOldUserToNewUser :: ByteString -> Maybe NewUser
 decodeOldUserToNewUser
   = decode >=> updateOldUserToNewUser
 
+-- V1
 
 data Older
   = Older { olderFirstName :: String
@@ -119,7 +125,8 @@ updateOlderToOldUser older
 
 decodeOlderToNewUser :: ByteString -> Maybe NewUser
 decodeOlderToNewUser
-  = decode >=> updateOlderToOldUser >=> updateOldUserToNewUser
+  = decode >=> updateOlderToOldUser
+           >=> updateOldUserToNewUser
 
 -- try decoding all versions of this mad bullshit
 decodeAll :: ByteString -> Maybe NewUser
@@ -128,15 +135,22 @@ decodeAll bs
   <|> decodeOldUserToNewUser bs
   <|> decodeOlderToNewUser bs
 
+
+
+
+
+
+
+
 -- Versioned captures this idea of bringing data up to date
 class Versioned a b where
   convert :: a -> Maybe b
-
-  {-instance (Versioned a b, Versioned b c) => Versioned a c where
+    {-
+instance (Versioned a b, Versioned b c) => Versioned a c where
   convert = convert @a @b >=> convert @b @c
 -}
 
-instance Versioned a a where
+instance {-# INCOHERENT #-} Versioned a a where
   convert = pure
 
 instance Versioned OldUser NewUser where

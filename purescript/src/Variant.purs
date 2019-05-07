@@ -1,12 +1,11 @@
 module Variant where
 
-import Prelude
+import Prelude ((+), (-))
 import Data.Array (reverse)
 import Data.Foldable (foldr)
 import Data.Variant (SProxy(..), Variant, inj, match)
-
-a :: Int
-a = 1
+import Data.Symbol (class IsSymbol)
+import Prim.Row (class Cons)
 
 -- here are our first actions
 data Login
@@ -92,14 +91,16 @@ tryLogin
         , liftCounting Down        
         ]
 
-{-
 
-can we get a typeclass to do this?
+class HasLabel a (p :: Symbol) | a -> p 
 
-class LiftVariant a p where
-  liftVariant :: forall v. a -> p -> Variant (p :: a | v)
+instance hasLabelLogin :: HasLabel Login "login" 
 
-instance liftVariantLogin :: LiftVariant Login (SProxy "login") where
-  liftVariant a p = inj p a
-
--}
+liftAction' 
+  :: forall sym a r1 r2. Cons sym a r1 r2 
+   => HasLabel a sym 
+   => IsSymbol sym 
+   => a 
+   -> Variant r2
+liftAction'  
+  = inj (SProxy :: SProxy sym) 

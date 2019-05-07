@@ -66,7 +66,6 @@ instance showRefinedError :: (Show a) => Show (RefinedError a) where
   show (NotEqualToError n a)
      = show a <> " should not be equal to " <> show n <> " but it is."
 
-
 fromInt :: forall a. (Ring a) => Int -> a
 fromInt i
   = a

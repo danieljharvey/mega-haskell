@@ -8,7 +8,7 @@ import Data.Argonaut (class DecodeJson, class EncodeJson, Json, decodeJson, enco
 import Data.Argonaut.Decode.Generic.Rep (genericDecodeJson)
 import Data.Argonaut.Encode.Generic.Rep (genericEncodeJson)
 
-import Heterogeneous.Folding (class Folding, hfoldl) 
+import Heterogeneous.Folding (class Folding, class HFoldl, hfoldl)
 
 type Error
   = { code :: Int
@@ -97,7 +97,7 @@ defaultState
 -- if we can match this, do the action
 tryReducer 
   :: forall a s. DecodeJson a 
-  => (s -> a -> s) 
+  => Reducer a s 
   -> s 
   -> Json
   -> s
@@ -118,15 +118,15 @@ h = tryReducer countReducer defaultState (encodeJson Up)
 -- record of reducers
 -- can this type be generalised to a record of (s -> a -> s) functions?
 reducers 
-  :: { login :: State -> Login -> State
-     , count :: State -> Counting -> State
+  :: { login :: Reducer Login State
+     , count :: Reducer Counting State
      }
 reducers 
   = { login : loginReducer
     , count : countReducer
     }
 
-
+type Reducer a s = s -> a -> s
 
 data RunReducer = RunReducer
 
@@ -140,8 +140,13 @@ instance runReducerFold
         = tryReducer reducer state json
 
 -- can we abstract the reducers out of this and pass them in too?
-runReducers :: State -> Json -> State
-runReducers state json 
-  = fst $ hfoldl RunReducer (Tuple state json) reducers 
-
+runReducers 
+  :: forall reducer state json
+  . HFoldl RunReducer (Tuple state json) reducer (Tuple state json) 
+  => reducer 
+  -> state 
+  -> json 
+  -> state
+runReducers reducers' state json 
+  = fst $ hfoldl RunReducer (Tuple state json) reducers'
 
