@@ -1,14 +1,20 @@
 {-# LANGUAGE AllowAmbiguousTypes    #-}
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE DeriveAnyClass         #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
+{-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
+
 module Schema where
+
 
 import           Control.Applicative
 import           Control.Monad
@@ -17,6 +23,7 @@ import           Data.ByteString.Lazy
 import qualified Data.Text            as Text
 import           GHC.Generics
 import           GHC.Natural
+import           GHC.TypeLits
 
 newtype Name
   = Name { getName :: Text.Text }
@@ -143,32 +150,48 @@ decodeAll bs
 
 
 -- Versioned captures this idea of bringing data up to date
-class Versioned a b where
-  convert :: a -> Maybe b
-    {-
-instance (Versioned a b, Versioned b c) => Versioned a c where
-  convert = convert @a @b >=> convert @b @c
--}
 
-instance {-# INCOHERENT #-} Versioned a a where
-  convert = pure
+class WithNumber a (num :: Nat)
 
-instance Versioned OldUser NewUser where
-  convert = updateOldUserToNewUser
+instance WithNumber Older 1
+instance WithNumber OldUser 2
+instance WithNumber NewUser 3
 
-instance Versioned Older OldUser where
-  convert = updateOlderToOldUser
+class (FromJSON a, FromJSON b, WithNumber a (num - 1), WithNumber b num)
+  => Versioned a b num | b -> num where
+    update :: a -> Maybe b
 
+instance ( FromJSON a
+         , FromJSON b
+         , FromJSON c
+         , WithNumber a (num - 1)
+         , WithNumber c num
+         , Versioned a b (num - 1)
+         , Versioned b c num
+         ) => Versioned a c num where
+  update = update @a @b >=> update @b @c
+
+instance Versioned OldUser NewUser 3 where
+  update = updateOldUserToNewUser
+
+instance Versioned Older OldUser 2 where
+  update = updateOlderToOldUser
+
+  {-
 -- can we generate this recursively?
 instance Versioned Older NewUser where
    convert = convert @Older >=> convert @OldUser
+-}
 
-decodeFor :: forall a b. (Versioned a b, FromJSON a) => ByteString -> Maybe b
-decodeFor = decode @a >=> convert @a @b
+  {-
+decodeFor :: forall a b n m. (Versioned a b n, WithNumber b m, WithNumber a n, FromJSON a) => ByteString -> Maybe b
+decodeFor = decode @a >=> update @a @b
+-}
 
+  {-
 decodeAllNew :: ByteString -> Maybe NewUser
 decodeAllNew bs
-  =   decodeFor @NewUser bs
-  <|> decodeFor @OldUser bs
-  <|> decodeFor @Older bs
-
+  =   decode @NewUser bs
+--  <|> decodeFor @OldUser bs
+  <|> decode @OldUser bs >>= update
+-}
