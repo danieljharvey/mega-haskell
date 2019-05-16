@@ -1,10 +1,12 @@
 module Variant where
 
-import Prelude ((+), (-))
-import Data.Array (reverse)
-import Data.Foldable (foldr)
+import Prelude
 import Data.Variant (SProxy(..), Variant, inj, match)
 import Data.Symbol (class IsSymbol)
+import Data.Traversable (traverse)
+import Effect (Effect)
+import Effect.Console (logShow)
+import Effect.Ref (Ref, new, read, write)
 import Prim.Row (class Cons)
 
 -- here are our first actions
@@ -25,19 +27,19 @@ type State
     , value     :: Int
     }
 
-loginReducer :: Login -> State -> State
-loginReducer (StartLogin _ _) s
-  = s { loggedIn = false, loggingIn = true }
-loginReducer Logout s
-  = s { loggedIn = false, loggingIn = false }
-loginReducer LoginSuccess s
-  = s { loggedIn = true, loggingIn = false }
+loginReducer :: (LiftedAction -> Effect Unit) -> Login -> State -> Effect State
+loginReducer _ (StartLogin _ _) s
+  = pure $ s { loggedIn = false, loggingIn = true }
+loginReducer _ Logout s
+  = pure $ s { loggedIn = false, loggingIn = false }
+loginReducer _ LoginSuccess s
+  = pure $ s { loggedIn = true, loggingIn = false }
 
-countReducer :: Counting -> State -> State
-countReducer Up s
-  = s { value = s.value + 1 }
-countReducer Down s
-  = s { value = s.value - 1 }
+countReducer :: (LiftedAction -> Effect Unit) -> Counting -> State -> Effect State
+countReducer _ Up s
+  = pure $ s { value = s.value + 1 }
+countReducer _ Down s
+  = pure $ s { value = s.value - 1 }
 
 defaultState :: State
 defaultState
@@ -46,61 +48,115 @@ defaultState
     , value     : 0
     }
 
--- this turns a normal Login action into a Variant Login action
-liftLogin 
-  :: forall v. Login 
-   -> Variant (login :: Login | v)
-liftLogin 
-  = inj (SProxy :: SProxy "login")
-
--- this turns a normal Counting action into a Variant Counting action
-liftCounting 
-  :: forall v. Counting 
-   -> Variant (counting :: Counting | v)
-liftCounting 
-  = inj (SProxy :: SProxy "counting")
-
 type LiftedAction 
   = Variant (login :: Login, counting :: Counting)
 
 -- This runs an action through whichever reducer makes sense
 -- @match@ uses exhaustiveness checking so we must check for every type
-process :: LiftedAction -> State -> State
-process action' s =
+myProcess 
+  :: (LiftedAction -> Effect Unit) 
+  -> State 
+  -> LiftedAction 
+  -> Effect State
+myProcess dispatch s action' =
   match
-    { login:    \action -> loginReducer action s
-    , counting: \action -> countReducer action s
+    { login:    \action -> loginReducer dispatch action s
+    , counting: \action -> countReducer dispatch action s
     } action'
 
-processAll :: State -> Array LiftedAction -> State
-processAll s as
-  = foldr process s (reverse as)
 
+{-
+processAll 
+  :: forall actionType
+   . actionType -> Effect Unit
+  -> State
+  -> Array actionType
+   -> Effect State
+processAll myDispatch s as
+  = foldM (process myDispatch) s (reverse as)
+  -}
+
+type RunReducers actionType stateType
+  = (actionType -> Effect Unit)
+  -> stateType
+  -> actionType
+  -> Effect stateType
+
+type Listeners stateType
+  = Array (stateType -> Effect Unit)
+
+data Store actionType stateType
+  = Store { dispatch :: actionType -> Effect Unit
+          , getState :: Effect stateType
+          }
+
+createStore 
+  :: forall stateType actionType
+   . stateType
+  -> Listeners stateType
+  -> RunReducers actionType stateType
+  -> Effect (Store actionType stateType)
+createStore state listeners reducers = do
+  stateRef <- new state
+
+  pure $ Store { dispatch: (update stateRef listeners reducers)
+               , getState: (getState stateRef)
+               }
+  
+update 
+  :: forall stateType actionType
+   . Ref stateType
+  -> Listeners stateType
+  -> RunReducers actionType stateType
+  -> actionType
+  -> Effect Unit
+update stateRef listeners reducers action = do
+  oldState <- read stateRef
+  newState <- reducers (\_ -> pure unit) oldState action
+  _ <- traverse (\f -> f newState) listeners
+  write newState stateRef
+
+getState
+  :: forall stateType 
+   . Ref stateType
+  -> Effect stateType
+getState stateRef = read stateRef
+
+createAndUse :: Effect Unit
+createAndUse = do 
+  (Store store) <- createStore defaultState [ listener ] myProcess
+  store.dispatch (liftAction' (StartLogin "poo" "woo"))
+
+listener :: State -> Effect Unit
+listener = logShow
+
+{-
 -- try out our Redux thing
 -- see how we can use 
-tryLogin :: State
+tryLogin :: Effect State
 tryLogin 
   = processAll defaultState actions
   where
     actions
-      = [ liftLogin Logout
-        , liftLogin (StartLogin "poo" "woo")
-        , liftLogin LoginSuccess
-        , liftCounting Up
-        , liftCounting Up
-        , liftCounting Down        
+      = [ liftAction' Logout
+        , liftAction' (StartLogin "poo" "woo")
+        , liftAction' LoginSuccess
+        , liftAction' Up
+        , liftAction' Up
+        , liftAction' Down        
         ]
-
+      -}
 
 class HasLabel a (p :: Symbol) | a -> p 
 
 instance hasLabelLogin :: HasLabel Login "login" 
+instance hasLabelCounting :: HasLabel Counting "counting"
 
 liftAction' 
-  :: forall sym a r1 r2. Cons sym a r1 r2 
-   => HasLabel a sym 
-   => IsSymbol sym 
-   => a 
-   -> Variant r2
+  :: forall label action dunno r. Cons label action dunno r 
+   => HasLabel action label 
+   => IsSymbol label 
+   => action 
+   -> Variant r
 liftAction'  
-  = inj (SProxy :: SProxy sym) 
+  = inj (SProxy :: SProxy label) 
