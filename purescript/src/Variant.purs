@@ -79,7 +79,6 @@ createAndUse = do
 listener :: State -> Effect Unit
 listener = logShow
 
-
 type Reducer allActionType actionType stateType
   =  (allActionType -> Effect Unit)
   -> actionType

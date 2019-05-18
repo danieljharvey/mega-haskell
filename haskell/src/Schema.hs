@@ -22,13 +22,13 @@ import           Control.Applicative
 import           Control.Monad
 import           Data.Aeson
 import           Data.ByteString.Lazy
+import           Data.Kind            (Type)
 import qualified Data.Text            as Text
+import           Data.Type.Bool
+import           Data.Void            (Void)
 import           GHC.Generics
 import           GHC.Natural
 import           GHC.TypeLits
-
-import           Data.Kind            (Type)
-import           Data.Void            (Void)
 
 newtype Name
   = Name { getName :: Text.Text }
@@ -148,81 +148,32 @@ decodeAll bs
   <|> decodeOlderToNewUser bs
 
 
-
-
-
-
-
-
--- Versioned captures this idea of bringing data up to date
-
-class WithNumber a (num :: Nat) | num -> a, a -> num
-
-instance WithNumber Older 1
-instance WithNumber OldUser 2
-instance WithNumber NewUser 3
-
-class (FromJSON a, FromJSON b, WithNumber a (num - 1), WithNumber b num)
-  => Versioned a b num where
-    update :: a -> Maybe b
-
-instance {-# OVERLAPPABLE #-} ( FromJSON a
-         , FromJSON b
-         , FromJSON c
-         , WithNumber a (num - 1)
-         , WithNumber c num
-         , Versioned a b (num - 1)
-         , Versioned b c num
-         ) => Versioned a c num where
-  update = update @a @b @(num -1) >=> update @b @c @num
-
-instance (a ~ OldUser, b ~ NewUser) => Versioned a b 3 where
-  update = updateOldUserToNewUser
-
-instance (a ~ Older, b ~ OldUser) => Versioned a b 2 where
-  update = updateOlderToOldUser
-
-  {-
--- can we generate this recursively?
-instance Versioned Older NewUser where
-   convert = convert @Older >=> convert @OldUser
--}
-
-decodeFor :: forall a b n. (Versioned a b n) => ByteString -> Maybe b
-decodeFor = decode @a >=> update @a @b @n
-
--- decodeAllNew :: ByteString -> Maybe NewUser
--- decodeAllNew bs
---   =   decode @NewUser bs
---   <|> decodeFor @OldUser bs
---   <|> decodeFor @Older bs
-
 -----------------------------------------------------------
 
 data User = User { tomName :: String, tomAge :: Int }
 
-class TomVersioned (pristine :: Type) (num :: Nat) where
+class TomVersioned (pristine :: Symbol) (num :: Nat) where
   type num `VersionOf` pristine :: Type
 
   upgrade :: (num - 1) `VersionOf` pristine -> Maybe (num `VersionOf` pristine)
 
-instance TomVersioned User 0 where
-  type 0 `VersionOf` User = Older
+instance TomVersioned "User" 0 where
+  type 0 `VersionOf` "User" = Older
 
   upgrade _ = Nothing
 
-instance TomVersioned User 1 where
-  type 1 `VersionOf` User = OldUser
+instance TomVersioned "User" 1 where
+  type 1 `VersionOf` "User" = OldUser
 
   upgrade = updateOlderToOldUser
 
-instance TomVersioned User 2 where
-  type 2 `VersionOf` User = NewUser
+instance TomVersioned "User" 2 where
+  type 2 `VersionOf` "User" = NewUser
 
   upgrade = updateOldUserToNewUser
 
 
-class GenerallyUpdate (m :: Nat) (n :: Nat) (pristine :: Type) where
+class GenerallyUpdate (m :: Nat) (n :: Nat) (pristine :: Symbol) where
   generallyUpdate :: m `VersionOf` pristine -> Maybe (n `VersionOf` pristine)
 
 instance
@@ -234,7 +185,7 @@ instance
     => GenerallyUpdate m n pristine where
   generallyUpdate = generallyUpdate_ @jobs @pristine
 
-class GenerallyUpdate_ (versions :: [Nat]) (pristine :: Type) where
+class GenerallyUpdate_ (versions :: [Nat]) (pristine :: Symbol) where
   generallyUpdate_ :: (Head versions) `VersionOf` pristine -> Maybe ((Last versions) `VersionOf` pristine)
 
 instance GenerallyUpdate_ '[n] pristine where
@@ -275,5 +226,6 @@ test1 = Refl
 test2 :: FindPath 2 2 :~: '[2]
 test2 = Refl
 
+
 f :: Older -> Maybe NewUser
-f = generallyUpdate @0 @2 @User
+f = generallyUpdate @0 @2 @"User"
