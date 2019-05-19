@@ -228,20 +228,25 @@ instance
   , FromJSON (this `VersionOf` pristine)
   ) => Migrate (this ': y ': xs) target pristine where
   migrate a
-    = decodeAndUpdate a
+    = decodeAndUpdate @this @target @pristine a
     <|> migrate  @(y ': xs) @target @pristine a
-    where
-      decodeAndUpdate a
-        = generallyUpdate @this @target @pristine
-        <$> decode @(this `VersionOf` pristine) a
 
 instance
   ( GenerallyUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
   ) => Migrate '[this] target pristine where
   migrate a
-    = generallyUpdate @this @target @pristine
-        <$> decode @(this `VersionOf` pristine) a
+    = decodeAndUpdate @this @target @pristine a
+
+decodeAndUpdate 
+  :: forall this target pristine 
+   . GenerallyUpdate this target pristine
+  => FromJSON (this `VersionOf` pristine)
+  => ByteString
+  -> Maybe (target `VersionOf` pristine)
+decodeAndUpdate a
+  =  generallyUpdate @this @target @pristine
+  <$> decode @(this `VersionOf` pristine) a
 
 ---
 
@@ -253,21 +258,27 @@ instance
   , MaybeUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
   ) => TryMigrate (this ': y ': xs) target pristine where
-  tryMigrate a
-    = decodeAndUpdate a
-    <|> tryMigrate  @(y ': xs) @target @pristine a
-    where
-      decodeAndUpdate
-        = decode @(this `VersionOf` pristine)
-        >=> maybeUpdate @this @target @pristine
+    tryMigrate a
+      =   tryDecodeAndUpdate @this @target @pristine a
+      <|> tryMigrate  @(y ': xs) @target @pristine a
+ 
 
 instance
   ( MaybeUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
   ) => TryMigrate '[this] target pristine where
-  tryMigrate
-    = maybeUpdate @this @target @pristine
-      <=< decode @(this `VersionOf` pristine)
+    tryMigrate = tryDecodeAndUpdate @this @target @pristine
+  
+
+tryDecodeAndUpdate 
+  :: forall this target pristine 
+   . MaybeUpdate this target pristine
+  => FromJSON (this `VersionOf` pristine)
+  => ByteString
+  -> Maybe (target `VersionOf` pristine)
+tryDecodeAndUpdate
+  =  decode @(this `VersionOf` pristine)
+ >=> maybeUpdate @this @target @pristine
 
 ---
 
@@ -364,36 +375,3 @@ type family ReversePath (m :: Nat) (n :: Nat) :: [Nat] where
 type family FindPath (m :: Nat) (n :: Nat) :: [Nat] where
   FindPath m m = '[m]
   FindPath m n = m ': FindPath (m + 1) n
-
-tryDecoding :: Maybe NewUser
-tryDecoding = decodeVia @"User" @0 @2 json
-  where
-    json :: ByteString
-    json = encode (Older "b" "b" "c")
-
-tryDecoding2 :: Maybe Older
-tryDecoding2 = decodeVia @"User" @0 @0 (encode (Older "bo" "f" "f"))
-
-tryDecoding3 :: Maybe NewUser
-tryDecoding3 = decodeVia @"User" @0 @2 json
-  where
-    json = encode (Older "ham" "man" "slam")
-
--- we get our maybe decoding for free
-tryMaybeDecode :: Maybe NewUser
-tryMaybeDecode = tryDecodeVia @"User" @0 @2 json
-  where
-    json = encode (Older "don't" "do" "drugs")
-
-weakSchemaDecode :: Maybe EvenNewerUser
-weakSchemaDecode = tryDecodeVia @"User" @0 @3 json
-  where
-    json = encode (Older "ham" "man" "wha")
-
-weakSchemaDecode2 :: Maybe EvenNewerUser
-weakSchemaDecode2 = tryDecodeVia @"User" @0 @3 json
-  where
-    json = encode (Older "Me" "Yes" "dog")
-
-updateAll :: Older -> NewUser
-updateAll = generallyUpdate @0 @2 @"User"
