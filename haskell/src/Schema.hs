@@ -22,7 +22,7 @@ module Schema where
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Monad
-import           Data.Aeson
+import qualified Data.Aeson as JSON
 import           Data.ByteString.Lazy
 import           Data.Kind            (Type)
 import qualified Data.Text            as Text
@@ -34,21 +34,21 @@ import           GHC.TypeLits
 
 newtype Name
   = Name { getName :: Text.Text }
-  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 newtype FirstName
   = FirstName { getFirstName :: Name }
-  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Generic, JSON.FromJSON, JSON.ToJSON)
 
 newtype Surname
   = Surname { getSurname :: Name }
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data Pet
   = Dog
   | Cat
   | Horse
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 -- V3
 
@@ -59,13 +59,13 @@ data NewUser
     , pet       :: Maybe Pet
     , age       :: Natural
     }
-    deriving (Show, Generic, FromJSON, ToJSON)
+    deriving (Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 data OldPet
   = OldDog
   | OldCat
   | NoPet
-  deriving (Generic, FromJSON)
+  deriving (Generic, JSON.FromJSON)
 
 
 
@@ -78,7 +78,7 @@ data OldUser
     , oldPet       :: OldPet
     , oldAge       :: Int
     }
-    deriving (Generic, FromJSON)
+    deriving (Generic, JSON.FromJSON)
 
 updateOldUserToNewUser :: OldUser -> NewUser
 updateOldUserToNewUser old
@@ -102,7 +102,7 @@ data Older
           , olderSurname   :: String
           , olderPet       :: String
           }
-          deriving (Show, Generic, FromJSON, ToJSON)
+          deriving (Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 updateOlderToOldUser :: Older -> OldUser
 updateOlderToOldUser older
@@ -126,21 +126,13 @@ data EvenNewerUser
     , newerPet       :: Pet
     , newerAge       :: Natural
     }
-    deriving (Show, Generic, FromJSON, ToJSON)
+    deriving (Show, Generic, JSON.FromJSON, JSON.ToJSON)
 
 updateNewUserToEvenNewerUser :: NewUser -> Maybe EvenNewerUser
 updateNewUserToEvenNewerUser (NewUser {..})
   = case pet of
       Just aPet -> Just (EvenNewerUser firstName surname aPet age)
       Nothing   -> Nothing
-
-newtype UserType
-  = UserType { getUserType :: Maybe NewUser }
-
-  {-
-instance FromJSON UserType where
-  parseJSON = UserType . decodeVia @"User" @0 @2
--}
 
 ---------------------------------------------------------
 
@@ -225,15 +217,15 @@ class Migrate (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
 instance
   ( Migrate (y ': xs) target pristine
   , GenerallyUpdate this target pristine
-  , FromJSON (this `VersionOf` pristine)
+  , JSON.FromJSON (this `VersionOf` pristine)
   ) => Migrate (this ': y ': xs) target pristine where
   migrate a
-    = decodeAndUpdate @this @target @pristine a
+    =   decodeAndUpdate @this @target @pristine a
     <|> migrate  @(y ': xs) @target @pristine a
 
 instance
   ( GenerallyUpdate this target pristine
-  , FromJSON (this `VersionOf` pristine)
+  , JSON.FromJSON (this `VersionOf` pristine)
   ) => Migrate '[this] target pristine where
   migrate a
     = decodeAndUpdate @this @target @pristine a
@@ -241,12 +233,12 @@ instance
 decodeAndUpdate 
   :: forall this target pristine 
    . GenerallyUpdate this target pristine
-  => FromJSON (this `VersionOf` pristine)
+  => JSON.FromJSON (this `VersionOf` pristine)
   => ByteString
   -> Maybe (target `VersionOf` pristine)
 decodeAndUpdate a
-  =  generallyUpdate @this @target @pristine
-  <$> decode @(this `VersionOf` pristine) a
+  =   generallyUpdate @this @target @pristine
+  <$> JSON.decode @(this `VersionOf` pristine) a
 
 ---
 
@@ -256,7 +248,7 @@ class TryMigrate (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
 instance
   ( TryMigrate (y ': xs) target pristine
   , MaybeUpdate this target pristine
-  , FromJSON (this `VersionOf` pristine)
+  , JSON.FromJSON (this `VersionOf` pristine)
   ) => TryMigrate (this ': y ': xs) target pristine where
     tryMigrate a
       =   tryDecodeAndUpdate @this @target @pristine a
@@ -265,7 +257,7 @@ instance
 
 instance
   ( MaybeUpdate this target pristine
-  , FromJSON (this `VersionOf` pristine)
+  , JSON.FromJSON (this `VersionOf` pristine)
   ) => TryMigrate '[this] target pristine where
     tryMigrate = tryDecodeAndUpdate @this @target @pristine
   
@@ -273,11 +265,11 @@ instance
 tryDecodeAndUpdate 
   :: forall this target pristine 
    . MaybeUpdate this target pristine
-  => FromJSON (this `VersionOf` pristine)
+  => JSON.FromJSON (this `VersionOf` pristine)
   => ByteString
   -> Maybe (target `VersionOf` pristine)
 tryDecodeAndUpdate
-  =  decode @(this `VersionOf` pristine)
+  =  JSON.decode @(this `VersionOf` pristine)
  >=> maybeUpdate @this @target @pristine
 
 ---
