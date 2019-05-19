@@ -9,6 +9,7 @@
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE RecordWildCards        #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeOperators          #-}
@@ -33,11 +34,11 @@ import           GHC.TypeLits
 
 newtype Name
   = Name { getName :: Text.Text }
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
 newtype FirstName
   = FirstName { getFirstName :: Name }
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
 newtype Surname
   = Surname { getSurname :: Name }
@@ -60,9 +61,6 @@ data NewUser
     }
     deriving (Show, Generic, FromJSON, ToJSON)
 
-decodeUser :: ByteString -> Maybe NewUser
-decodeUser = decode
-
 data OldPet
   = OldDog
   | OldCat
@@ -82,9 +80,6 @@ data OldUser
     }
     deriving (Generic, FromJSON)
 
-decodeOldUser :: ByteString -> Maybe OldUser
-decodeOldUser = decode
-
 updateOldUserToNewUser :: OldUser -> NewUser
 updateOldUserToNewUser old
   = NewUser
@@ -100,15 +95,6 @@ updateOldUserToNewUser old
           OldCat -> Just Cat
           _      -> Nothing
 
-  {-
--- decode and convert to new user type
-decodeOldUserToNewUser :: ByteString -> Maybe NewUser
-decodeOldUserToNewUser
-  = decode >=> updateOldUserToNewUser
--}
-
-
-
 -- V1
 
 data Older
@@ -117,9 +103,6 @@ data Older
           , olderPet       :: String
           }
           deriving (Show, Generic, FromJSON, ToJSON)
-
-decodeOlder :: ByteString -> Maybe Older
-decodeOlder = decode
 
 updateOlderToOldUser :: Older -> OldUser
 updateOlderToOldUser older
@@ -134,16 +117,47 @@ updateOlderToOldUser older
       | s == "cat" = OldCat
       | otherwise  = NoPet
 
-sampleOlder :: Older
-sampleOlder = Older "john" "snoww" "peeboo"
+---
+  --
+data EvenNewerUser
+  = EvenNewerUser
+    { newerFirstName :: FirstName
+    , newerSurname   :: Surname
+    , newerPet       :: Pet
+    , newerAge       :: Natural
+    }
+    deriving (Show, Generic, FromJSON, ToJSON)
 
------------------------------------------------------------
+updateNewUserToEvenNewerUser :: NewUser -> Maybe EvenNewerUser
+updateNewUserToEvenNewerUser (NewUser {..})
+  = case pet of
+      Just aPet -> Just (EvenNewerUser firstName surname aPet age)
+      Nothing   -> Nothing
+
+newtype UserType
+  = UserType { getUserType :: Maybe NewUser }
+
+  {-
+instance FromJSON UserType where
+  parseJSON = UserType . decodeVia @"User" @0 @2
+-}
+
+---------------------------------------------------------
 
 class Versioned (pristine :: Symbol) (num :: Nat) where
   type num `VersionOf` pristine :: Type
 
 class Upgradable (pristine :: Symbol) (num :: Nat) where
   upgrade :: (num - 1) `VersionOf` pristine -> (num `VersionOf` pristine)
+
+class MaybeUpgradable (pristine :: Symbol) (num :: Nat) where
+  tryUpgrade :: (num - 1) `VersionOf` pristine -> Maybe (num `VersionOf` pristine)
+
+-- every defined Upgradable gives us a free MaybeUpgradable
+instance {-# OVERLAPPABLE #-}
+  (Upgradable pristine num)
+  => MaybeUpgradable pristine num where
+  tryUpgrade = Just . upgrade @pristine @num
 
 --
 instance Versioned "User" 0 where
@@ -163,50 +177,99 @@ instance Versioned "User" 2 where
 instance Upgradable "User" 2 where
   upgrade = updateOldUserToNewUser
 
+---
+instance Versioned "User" 3 where
+  type 3 `VersionOf` "User" = EvenNewerUser
 
+instance MaybeUpgradable "User" 3 where
+  tryUpgrade = updateNewUserToEvenNewerUser
 
--- usage , 5 10
-class TryDecoding (earliest :: Nat) (target :: Nat) (pristine :: Symbol) where
-  tryDecode :: ByteString -> Maybe (target `VersionOf` pristine)
+---
+class Schema
+  (pristine :: Symbol)
+  (earliest :: Nat)
+  (target :: Nat) where
+  decodeVia :: ByteString -> Maybe (target `VersionOf` pristine)
 
 instance
   ( jobs ~ ReversePath earliest target
-  , TryDecoding_ jobs target pristine
+  , Migrate jobs target pristine
   , Head jobs ~ target
   , Last jobs ~ earliest
   )
-  => TryDecoding earliest target pristine where
-    tryDecode
-      = tryDecode_ @jobs @target @pristine
+  => Schema pristine earliest target where
+    decodeVia = migrate @jobs @target @pristine
 
-class TryDecoding_ (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
-  tryDecode_ :: ByteString -> Maybe (target `VersionOf` pristine)
+---
+
+class WeakSchema
+  (pristine :: Symbol)
+  (earliest :: Nat)
+  (target :: Nat) where
+  tryDecodeVia :: ByteString -> Maybe (target `VersionOf` pristine)
 
 instance
-  ( Versioned pristine y
-  , Versioned pristine this
-  , Versioned pristine target
-  , TryDecoding_ (y ': xs) target pristine
+  ( jobs ~ ReversePath earliest target
+  , TryMigrate jobs target pristine
+  , Head jobs ~ target
+  , Last jobs ~ earliest
+  )
+  => WeakSchema pristine earliest target where
+    tryDecodeVia = tryMigrate @jobs @target @pristine
+
+---
+
+class Migrate (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
+  migrate :: ByteString -> Maybe (target `VersionOf` pristine)
+
+instance
+  ( Migrate (y ': xs) target pristine
   , GenerallyUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
-  ) => TryDecoding_ (this ': y ': xs) target pristine where
-  tryDecode_ a
+  ) => Migrate (this ': y ': xs) target pristine where
+  migrate a
     = decodeAndUpdate a
-    <|> tryDecode_  @(y ': xs) @target @pristine a
+    <|> migrate  @(y ': xs) @target @pristine a
     where
       decodeAndUpdate a
         = generallyUpdate @this @target @pristine
         <$> decode @(this `VersionOf` pristine) a
 
 instance
-  ( Versioned pristine this
-  , Versioned pristine target
-  , GenerallyUpdate this target pristine
+  ( GenerallyUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
-  ) => TryDecoding_ '[this] target pristine where
-  tryDecode_ a
+  ) => Migrate '[this] target pristine where
+  migrate a
     = generallyUpdate @this @target @pristine
         <$> decode @(this `VersionOf` pristine) a
+
+---
+
+class TryMigrate (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
+  tryMigrate :: ByteString -> Maybe (target `VersionOf` pristine)
+
+instance
+  ( TryMigrate (y ': xs) target pristine
+  , MaybeUpdate this target pristine
+  , FromJSON (this `VersionOf` pristine)
+  ) => TryMigrate (this ': y ': xs) target pristine where
+  tryMigrate a
+    = decodeAndUpdate a
+    <|> tryMigrate  @(y ': xs) @target @pristine a
+    where
+      decodeAndUpdate
+        = decode @(this `VersionOf` pristine)
+        >=> maybeUpdate @this @target @pristine
+
+instance
+  ( MaybeUpdate this target pristine
+  , FromJSON (this `VersionOf` pristine)
+  ) => TryMigrate '[this] target pristine where
+  tryMigrate
+    = maybeUpdate @this @target @pristine
+      <=< decode @(this `VersionOf` pristine)
+
+---
 
 class GenerallyUpdate (earliest :: Nat) (target :: Nat) (pristine :: Symbol) where
   generallyUpdate :: earliest `VersionOf` pristine -> (target `VersionOf` pristine)
@@ -239,6 +302,42 @@ instance {-# OVERLAPPABLE #-}
     = upgrade @pristine @y
     >>> generallyUpdate_ @(y ': xs) @pristine
 
+---
+
+
+class MaybeUpdate (earliest :: Nat) (target :: Nat) (pristine :: Symbol) where
+  maybeUpdate :: earliest `VersionOf` pristine -> Maybe (target `VersionOf` pristine)
+
+instance
+    ( jobs ~ FindPath earliest target
+    , MaybeUpdate_ jobs pristine
+    , Last jobs ~ target
+    , Head jobs ~ earliest
+    )
+    => MaybeUpdate earliest target pristine where
+  maybeUpdate = maybeUpdate_ @jobs @pristine
+
+class MaybeUpdate_ (versions :: [Nat]) (pristine :: Symbol) where
+  maybeUpdate_
+    :: (Head versions) `VersionOf` pristine
+    -> Maybe ((Last versions) `VersionOf` pristine)
+
+instance MaybeUpdate_ '[n] pristine where
+  maybeUpdate_ = pure
+
+instance {-# OVERLAPPABLE #-}
+      ( x ~ (y - 1)
+      , Versioned pristine y
+      , MaybeUpgradable pristine y
+      , MaybeUpdate_ (y ': xs) pristine
+      )
+      => MaybeUpdate_ (x ': y ': xs) pristine where
+  maybeUpdate_
+    = tryUpgrade @pristine @y
+      >=> maybeUpdate_ @(y ': xs) @pristine
+
+---
+
 type family (xs :: [k]) ++ (ys :: [k]) :: [k] where
   '[] ++ ys = ys
   (x ': xs) ++ ys = x ': (xs ++ ys)
@@ -262,36 +361,39 @@ type family Reverse xs where
 type family ReversePath (m :: Nat) (n :: Nat) :: [Nat] where
   ReversePath m n = Reverse (FindPath m n)
 
-testR :: ReversePath 5 10 :~: '[10, 9, 8, 7, 6, 5]
-testR = Refl
-
-testR2 :: ReversePath 0 2 :~: '[2, 1, 0]
-testR2 = Refl
-
-data (x :: k) :~: (y :: k) where
-  Refl :: x :~: x
-
 type family FindPath (m :: Nat) (n :: Nat) :: [Nat] where
   FindPath m m = '[m]
   FindPath m n = m ': FindPath (m + 1) n
 
-test0 :: FindPath 5 10 :~: '[5, 6, 7, 8, 9, 10]
-test0 = Refl
-
-test1 :: FindPath 5 10 :~: '[5, 6, 7, 8, 9, 10]
-test1 = Refl
-
-test2 :: FindPath 2 2 :~: '[2]
-test2 = Refl
-
 tryDecoding :: Maybe NewUser
-tryDecoding = tryDecode @0 @2 @"User" json
+tryDecoding = decodeVia @"User" @0 @2 json
   where
     json :: ByteString
     json = encode (Older "b" "b" "c")
 
 tryDecoding2 :: Maybe Older
-tryDecoding2 = tryDecode @0 @0 @"User" (encode (Older "bo" "f" "f"))
+tryDecoding2 = decodeVia @"User" @0 @0 (encode (Older "bo" "f" "f"))
+
+tryDecoding3 :: Maybe NewUser
+tryDecoding3 = decodeVia @"User" @0 @2 json
+  where
+    json = encode (Older "ham" "man" "slam")
+
+-- we get our maybe decoding for free
+tryMaybeDecode :: Maybe NewUser
+tryMaybeDecode = tryDecodeVia @"User" @0 @2 json
+  where
+    json = encode (Older "don't" "do" "drugs")
+
+weakSchemaDecode :: Maybe EvenNewerUser
+weakSchemaDecode = tryDecodeVia @"User" @0 @3 json
+  where
+    json = encode (Older "ham" "man" "wha")
+
+weakSchemaDecode2 :: Maybe EvenNewerUser
+weakSchemaDecode2 = tryDecodeVia @"User" @0 @3 json
+  where
+    json = encode (Older "Me" "Yes" "dog")
 
 updateAll :: Older -> NewUser
 updateAll = generallyUpdate @0 @2 @"User"
