@@ -137,53 +137,37 @@ updateOlderToOldUser older
 sampleOlder :: Older
 sampleOlder = Older "john" "snoww" "peeboo"
 
-  {-
-decodeOlderToNewUser :: ByteString -> Maybe NewUser
-decodeOlderToNewUser
-  = decode >=> updateOlderToOldUser
-           >=> updateOldUserToNewUser
--}
-  {-
--- try decoding all versions of this mad bullshit
-decodeAll :: ByteString -> Maybe NewUser
-decodeAll bs
-    = decodeUser bs
-  <|> decodeOldUserToNewUser bs
-  <|> decodeOlderToNewUser bs
--}
-
 -----------------------------------------------------------
 
-data User = User { tomName :: String, tomAge :: Int }
-
-class TomVersioned (pristine :: Symbol) (num :: Nat) where
+class Versioned (pristine :: Symbol) (num :: Nat) where
   type num `VersionOf` pristine :: Type
 
+class Upgradable (pristine :: Symbol) (num :: Nat) where
   upgrade :: (num - 1) `VersionOf` pristine -> (num `VersionOf` pristine)
 
-instance TomVersioned "User" 0 where
+--
+instance Versioned "User" 0 where
   type 0 `VersionOf` "User" = Older
 
-  upgrade = undefined
-
-instance TomVersioned "User" 1 where
+--
+instance Versioned "User" 1 where
   type 1 `VersionOf` "User" = OldUser
 
+instance Upgradable "User" 1 where
   upgrade = updateOlderToOldUser
 
-instance TomVersioned "User" 2 where
+--
+instance Versioned "User" 2 where
   type 2 `VersionOf` "User" = NewUser
 
+instance Upgradable "User" 2 where
   upgrade = updateOldUserToNewUser
+
+
 
 -- usage , 5 10
 class TryDecoding (earliest :: Nat) (target :: Nat) (pristine :: Symbol) where
   tryDecode :: ByteString -> Maybe (target `VersionOf` pristine)
-
-{- the simple case where there is only one version -}
-instance (FromJSON (VersionOf i pristine))
-  => TryDecoding i i pristine where
-    tryDecode = decode
 
 instance
   ( jobs ~ ReversePath earliest target
@@ -198,13 +182,10 @@ instance
 class TryDecoding_ (versions :: [Nat]) (target :: Nat) (pristine :: Symbol) where
   tryDecode_ :: ByteString -> Maybe (target `VersionOf` pristine)
 
-instance (FromJSON (n `VersionOf` pristine)) => TryDecoding_ '[n] n pristine where
-  tryDecode_ = decode
-
-instance {-# OVERLAPPABLE #-}
-  ( TomVersioned pristine y
-  , TomVersioned pristine this
-  , TomVersioned pristine target
+instance
+  ( Versioned pristine y
+  , Versioned pristine this
+  , Versioned pristine target
   , TryDecoding_ (y ': xs) target pristine
   , GenerallyUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
@@ -218,8 +199,8 @@ instance {-# OVERLAPPABLE #-}
         <$> decode @(this `VersionOf` pristine) a
 
 instance
-  ( TomVersioned pristine this
-  , TomVersioned pristine target
+  ( Versioned pristine this
+  , Versioned pristine target
   , GenerallyUpdate this target pristine
   , FromJSON (this `VersionOf` pristine)
   ) => TryDecoding_ '[this] target pristine where
@@ -249,11 +230,14 @@ instance GenerallyUpdate_ '[n] pristine where
 
 instance {-# OVERLAPPABLE #-}
       ( x ~ (y - 1)
-      , TomVersioned pristine y
+      , Versioned pristine y
+      , Upgradable pristine y
       , GenerallyUpdate_ (y ': xs) pristine
       )
       => GenerallyUpdate_ (x ': y ': xs) pristine where
-  generallyUpdate_ = upgrade @pristine @y >>> generallyUpdate_ @(y ': xs) @pristine
+  generallyUpdate_
+    = upgrade @pristine @y
+    >>> generallyUpdate_ @(y ': xs) @pristine
 
 type family (xs :: [k]) ++ (ys :: [k]) :: [k] where
   '[] ++ ys = ys
@@ -305,6 +289,9 @@ tryDecoding = tryDecode @0 @2 @"User" json
   where
     json :: ByteString
     json = encode (Older "b" "b" "c")
+
+tryDecoding2 :: Maybe Older
+tryDecoding2 = tryDecode @0 @0 @"User" (encode (Older "bo" "f" "f"))
 
 updateAll :: Older -> NewUser
 updateAll = generallyUpdate @0 @2 @"User"
