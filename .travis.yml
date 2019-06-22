@@ -12,7 +12,7 @@ cache:
     - $HOME/.stack
     - .stack-work
     - $HOME/purescript/node_modules
-    - $HOME/purescript/.psc-package
+    - $HOME/purescript/.spago
     - $HOME/purescript/.pulp-cache
 
 install:
