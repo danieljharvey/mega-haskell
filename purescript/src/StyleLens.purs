@@ -1,7 +1,6 @@
 module StyleLens where
 
 import Prelude
-import Data.Array (cons)
 import Data.Foldable (foldr)
 
 sample :: String
@@ -13,58 +12,36 @@ sample = """
 """
 
 newtype Style p
-  = Style (Array (p -> String))
+  = Style (Array (StyleRule p))
+
+instance styleSemigroup :: Semigroup (Style a) where
+  append (Style as) (Style bs) = Style (as <> bs)
+
+data StyleRule p
+  = Const String
+  | Lens (p -> String)
 
 type Props
   = { size :: Int
     , opened :: Boolean
     }
 
+str :: forall props. String -> Style props
+str = Style <<< pure <<< Const
+
+fun :: forall props. (props -> String) -> Style props
+fun = Style <<< pure <<< Lens
+
 makeStyle :: Style Props
-makeStyle =
-  Style ( 
-    """
-    background-color: black;
-    "height: 100px;
-    """ ||>
-    (\p -> "width: " <> (show p.size) <> "px;") $|>
-    (\p -> if p.opened 
-                 then "border: 1px black solid;" 
-                 else "border: none;") $|> 
-    []
-  )
-
-makeStyle2 :: Style Props
-makeStyle2 =
-  Style ( 
-    _str """
-         background-color: black;
-         height: 100px;
-         """ $
-    _fun (\p -> "width: " <> (show p.size) <> "px;") $
-    _fun (\p -> if p.opened 
-                 then "border: 1px black solid;" 
-                 else "border: none;") $ 
-    []
-  )
-
-makeStyle3 :: Style Props
-makeStyle3 =
-  Style 
-    [ const """
+makeStyle
+  =  str """
          background-color: black;
          height: 100px;
          """
-    , (\p -> "width: " <> (show p.size) <> "px;")
-    , (\p -> if p.opened 
+  <> fun (\p -> "width: " <> (show p.size) <> "px;")
+  <> fun (\p -> if p.opened 
                  then "border: 1px black solid;" 
                  else "border: none;")
-    ]
-
-
-constStyle :: forall a. String -> Style a
-constStyle s
-  = Style (pure (const s))
 
 renderStyle 
   :: forall props
@@ -72,7 +49,28 @@ renderStyle
   -> Style props 
   -> String
 renderStyle props (Style styles)
-  = foldr (<>) "" $ flap styles props
+  = foldr (<>) "" $ flap (map everythingRenderer styles) props
+
+makeRenderer 
+  :: forall props
+   . (String -> String)
+  -> (String -> String)
+  -> StyleRule props 
+  -> props 
+  -> String
+makeRenderer constF lensF f p 
+  = case f of
+      Const s -> (constF s)
+      Lens a  -> lensF (a p)
+
+dynamicRenderer :: forall p. StyleRule p -> p -> String
+dynamicRenderer = makeRenderer (const mempty) identity
+
+staticRenderer :: forall p. StyleRule p -> p -> String
+staticRenderer = makeRenderer identity (const mempty)
+
+everythingRenderer :: forall p. StyleRule p -> p -> String
+everythingRenderer = makeRenderer identity identity 
 
 b :: String
 b = renderStyle { size: 10, opened: false } makeStyle
@@ -80,20 +78,4 @@ b = renderStyle { size: 10, opened: false } makeStyle
 c :: String
 c = renderStyle { size: 200, opened: true } makeStyle
 
-makeConst :: forall p s. s -> Array (p -> s) -> Array (p -> s)
-makeConst
-  = cons <<< const
-
-makeLens :: forall a. a -> Array a -> Array a
-makeLens = cons
-
-_str :: forall p s. s -> Array (p -> s) -> Array (p -> s)
-_str = makeConst
-
-_fun :: forall a. a -> Array a -> Array a
-_fun = makeLens
-
-infixr 5 makeConst as ||>
-
-infixr 5 makeLens as $|>
 
