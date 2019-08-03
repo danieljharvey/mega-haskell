@@ -40,6 +40,7 @@ library
                   , Redux
                   , Schema
                   , Viewfunctor
+                  , Combinators
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -93,6 +94,7 @@ test-suite unit-tests
                   , State
                   , Nonempty
                   , Contravariant
+                  , Combinators
                   , Comonad
                   , Redux
                   , Schema
@@ -108,6 +110,7 @@ test-suite unit-tests
                   , AlternativeSpec
                   , ArrowSpec
                   , ComonadSpec
+                  , CombinatorsSpec
                   , ContravariantSpec
                   , DoSpec
                   , FoldableSpec
