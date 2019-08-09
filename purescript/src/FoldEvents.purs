@@ -296,7 +296,7 @@ valIsFocused
 valIsFocused = view (_val <<< hasFocus') 
 
 logWithVal :: TestRecord
-logWithVal = over (_val <<< events') (addEvent OnFocus) testRecord
+logWithVal = over _val (log OnFocus) testRecord
 
 no :: Boolean
 no = valIsFocused testRecord
