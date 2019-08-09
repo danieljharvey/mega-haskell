@@ -6,13 +6,11 @@ import Data.Array (find)
 import Data.Foldable (foldMap, foldr) 
 import Data.Lens (Getter', Lens', over, preview, view) 
 import Data.Lens.Getter (to) 
-import Data.Lens.Prism (Prism', prism', review)
+import Data.Lens.Prism (Prism', review)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(..), fromMaybe, isJust) 
+import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Maybe.Last (Last(..))
 import Data.Newtype (unwrap) 
-import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.Symbol (SProxy(..))
 
 ---
@@ -73,17 +71,6 @@ default'
 default' = prop (SProxy :: SProxy "default")
 
 --
-
-
-data Pet
-  = Dog
-  | Cat
-  | Horse
-
-derive instance genericPet :: Generic Pet _ 
-
-instance showPet :: Show Pet where
-  show = genericShow
 
 data Event rawType
   = OnBlur
@@ -229,24 +216,6 @@ createWithDefault prism'' def
     , default:   def
     }
 
-
----- sample
-
-pet' :: Prism' String Pet
-pet' = prism' toPet fromPet
-  where
-     fromPet = case _ of 
-                 "Dog"   -> Just Dog
-                 "Cat"   -> Just Cat
-                 "Horse" -> Just Horse
-                 _       -> Nothing
-     toPet   = show
-
-
-petSelector :: PrismControl String Pet
-petSelector = createEmpty pet'
-
-
 log 
   :: forall rawType r
    . Event rawType
@@ -259,50 +228,6 @@ addEvent :: forall a. a -> Array a -> Array a
 addEvent a as 
   = (as <> (pure a))
 
-testing 
-  :: forall r
-   . { events :: ControlEvents String | r }
-  -> { events :: ControlEvents String | r }
-testing  = (log OnFocus)
-       <<< (log OnBlur)
-       <<< (log (OnChange "oh"))
-       <<< (log (OnChange "Dog"))
-       <<< (log (OnChange "Doge"))
 
-value :: PrismControl String Pet
-value = testing (createEmpty pet')
-
-mostRecent :: Maybe Pet
-mostRecent = view getMaybeOutput' value
--- Nothing 
-
-isFocused :: Boolean
-isFocused = view hasFocus' value
--- false
-
-type TestRecord
-  = { val :: PrismControl String Pet
-    }
-
-testRecord :: TestRecord
-testRecord = { val: value }
-
-_val :: Lens' TestRecord (PrismControl String Pet)
-_val = prop (SProxy :: SProxy "val")
-
-valIsFocused 
-  :: TestRecord 
-  -> Boolean
-valIsFocused = view (_val <<< hasFocus') 
-
-logWithVal :: TestRecord
-logWithVal = over _val (log OnFocus) testRecord
-
-no :: Boolean
-no = valIsFocused testRecord
--- false
-
-yes :: Boolean
-yes = valIsFocused logWithVal
--- true
+---- sample
 
