@@ -136,7 +136,8 @@ mostRecentValue events
 
 _mostRecentValue
   :: forall rawType niceType e
-   . Getter' (PrismControl rawType niceType e) (Either (EventError e) rawType) 
+   . Getter' (PrismControl rawType niceType e) 
+             (Either (EventError e) rawType) 
 _mostRecentValue
   = _events <<< to (mostRecentValue)
 
@@ -144,14 +145,13 @@ _mostRecentValue
 
 _lastGoodValue
   :: forall rawType niceType e
-   . Getter' (PrismControl rawType niceType e) (Either (EventError e) niceType)
+   . Getter' (PrismControl rawType niceType e)
+             (Either (EventError e) niceType)
 _lastGoodValue
   = to outputGetter
   where
     outputGetter a
       = lastGoodValue (view _eitherFrom a) (view _events a)
-
-
 
 lastGoodValue
   :: forall rawType niceType e
@@ -194,8 +194,12 @@ getEitherOutput eitherFrom events
       Left e -> Left e
       Right a -> wrapError (eitherFrom a)
 
-wrapError :: forall e a. Either e a -> Either (EventError e) a
-wrapError = left ValidationError 
+wrapError 
+  :: forall e a
+   . Either e a 
+  -> Either (EventError e) a
+wrapError 
+  = left ValidationError 
 
 _getEitherOutput
   :: forall rawType niceType e

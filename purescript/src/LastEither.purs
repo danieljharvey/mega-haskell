@@ -2,6 +2,7 @@ module Data.Monoid.LastE where
 
 import Prelude
 import Data.Either (Either(..))
+import Data.Newtype
 
 newtype LastE e a 
   = LastE (Either e a)
@@ -29,6 +30,8 @@ derive newtype instance bindLastE
 
 derive newtype instance monadLastE
   :: Monad (LastE e)
+
+derive instance newtypeLastE :: Newtype (LastE e a) _
 
 instance semigroupLastE 
   :: Semigroup (LastE e a) where
