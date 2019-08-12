@@ -3,32 +3,29 @@ module FoldEvents where
 import Prelude
  
 import Data.Array (find) 
-import Data.Foldable (foldMap, foldr) 
-import Data.Lens (Getter', Lens', over, preview, view) 
+import Data.Either (Either(..)) 
+import Data.Foldable (foldMap, foldl) 
+import Data.Lens (Getter', Lens', left, over, view) 
 import Data.Lens.Getter (to) 
-import Data.Lens.Prism (Prism', review)
+import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(..), fromMaybe, isJust)
+import Data.Maybe (Maybe(..), isJust) 
 import Data.Maybe.Last (Last(..))
-import Data.Newtype (unwrap) 
+import Data.Newtype (class Newtype, unwrap) 
 import Data.Symbol (SProxy(..))
 
 ---
 
-type PrismControl rawType niceType
-  = { events    :: ControlEvents rawType
-    , to        :: niceType -> rawType
-    , maybeFrom :: rawType -> Maybe niceType
+newtype PrismControl rawType niceType err
+  = PrismControl (PrismControl' rawType niceType err)
+
+type PrismControl' rawType niceType err
+  = { events     :: ControlEvents rawType
+    , to         :: niceType -> rawType
+    , eitherFrom :: rawType -> Either err niceType
     }
 
----
-
-type PrismDefaultControl rawType niceType
-  = { events    :: ControlEvents rawType
-    , to        :: niceType -> rawType
-    , maybeFrom :: rawType -> Maybe niceType
-    , default   :: niceType
-    } 
+derive instance newtypePrismControl :: Newtype (PrismControl a b c) _
 
 ---
 
@@ -37,38 +34,30 @@ type ControlEvents rawType
 
 ---
 
-events' 
-  :: forall rawType r
-   . Lens' { events :: ControlEvents rawType | r } (ControlEvents rawType)
-events' = prop (SProxy :: SProxy "events")
+_events 
+  :: forall rawType a e
+   . Lens' (PrismControl rawType a e) (ControlEvents rawType)
+_events 
+  =   _Newtype 
+  <<< prop (SProxy :: SProxy "events")
 
 ---
 
-to' 
-  :: forall niceType rawType r
-   . Lens' { to :: (niceType -> rawType) | r } (niceType -> rawType)
-to' = prop (SProxy :: SProxy "to")
+_to 
+  :: forall niceType rawType e
+   . Lens' (PrismControl rawType niceType e) (niceType -> rawType)
+_to 
+  =   _Newtype
+  <<< prop (SProxy :: SProxy "to")
 
 ---
 
-from' 
-  :: forall niceType rawType r
-   . Lens' { from :: (rawType -> niceType) | r } (rawType -> niceType)
-from' = prop (SProxy :: SProxy "from")
-
----
-
-maybeFrom'
-  :: forall niceType rawType r
-   . Lens' { maybeFrom :: (rawType -> Maybe niceType) | r } (rawType -> Maybe niceType)
-maybeFrom'
-  = prop (SProxy :: SProxy "maybeFrom")
----
-
-default'
-  :: forall niceType r
-   . Lens' { default :: niceType | r } niceType
-default' = prop (SProxy :: SProxy "default")
+_eitherFrom 
+  :: forall niceType rawType e
+   . Lens' (PrismControl rawType niceType e) (rawType -> Either e niceType)
+_eitherFrom 
+  =   _Newtype
+  <<< prop (SProxy :: SProxy "eitherFrom")
 
 --
 
@@ -78,156 +67,169 @@ data Event rawType
   | OnChange rawType
 
 derive instance eqEvent :: (Eq internalType) => Eq (Event internalType)
+instance showEvent :: (Show a) => Show (Event a) where
+  show OnBlur = "OnBlur"
+  show OnFocus = "OnFocus"
+  show (OnChange a) = "OnChange - " <> show a
+
+data EventError e
+  = NoValue
+  | ValidationError e
+
+derive instance eqEventError :: (Eq a) => Eq (EventError a)
+
+instance showEventError :: (Show a) => Show (EventError a) where
+  show NoValue = "NoValue"
+  show (ValidationError a) = show a
 
 ---
 
-hasFocus' 
-  :: forall rawType r
-   . Getter' { events :: ControlEvents rawType | r } Boolean
-hasFocus' = events' <<< to (hasFocus)
+_hasFocus 
+  :: forall rawType niceType e
+   . Getter' (PrismControl rawType niceType e) Boolean
+_hasFocus = _events <<< to (hasFocus)
   where
     hasFocus 
-      = foldr reducey false 
+      = foldl reducey false 
       where
         reducey
-          = (\e t -> case e of
+          = (\t e -> case e of
               OnFocus -> true
               OnBlur  -> false
               _       -> t) 
 
 ---
 
-hasBlurred' 
-  :: forall rawType r
+_hasBlurred 
+  :: forall rawType niceType e
    . Eq rawType
-  => Getter' { events :: ControlEvents rawType | r } Boolean
-hasBlurred' = events' <<< to (isJust <<< find ((==) OnBlur))
+  => Getter' (PrismControl rawType niceType e) Boolean
+_hasBlurred 
+  =   _events 
+  <<< to (isJust <<< find ((==) OnBlur))
 
 ---
 
-hasHadFocus' 
-  :: forall rawType r
+_hasHadFocus 
+  :: forall rawType niceType e 
    . Eq rawType
-  => Getter' { events :: ControlEvents rawType | r } Boolean
-hasHadFocus' = events' <<< to (isJust <<< find ((==) OnFocus))
+  => Getter' (PrismControl rawType niceType e) Boolean
+_hasHadFocus 
+  =   _events 
+  <<< to (isJust <<< find ((==) OnFocus))
 
 ---
 
 mostRecentValue 
-  :: forall i 
+  :: forall i e
    . ControlEvents i 
-  -> Maybe i
+  -> Either (EventError e) i
 mostRecentValue events
-  = unwrap $ foldMap Last (map onChangeOnly events)
+  = case unwrap $ foldMap Last (map onChangeOnly events) of
+      Just a  -> Right a
+      Nothing -> Left NoValue
   where
     onChangeOnly
       = case _ of
           OnChange a -> Just a
           _          -> Nothing
 
-mostRecentValue'
-  :: forall rawType r
-   . Getter' { events :: ControlEvents rawType | r} (Maybe rawType) 
-mostRecentValue'
-  = events' <<< to (mostRecentValue)
+_mostRecentValue
+  :: forall rawType niceType e
+   . Getter' (PrismControl rawType niceType e) (Either (EventError e) rawType) 
+_mostRecentValue
+  = _events <<< to (mostRecentValue)
 
 ---
 
-getMaybeOutput
-  :: forall i a
-   . (i -> Maybe a)
-  -> ControlEvents i
-  -> Maybe a
-getMaybeOutput maybeFrom events
-  = mostRecentValue events >>= maybeFrom
-
-getMaybeOutput'
-  :: forall rawType niceType r
-   . Getter' { events :: ControlEvents rawType
-             , maybeFrom :: (rawType -> Maybe niceType) 
-             | r
-             }
-     (Maybe niceType) 
-getMaybeOutput'
+_lastGoodValue
+  :: forall rawType niceType e
+   . Getter' (PrismControl rawType niceType e) (Either (EventError e) niceType)
+_lastGoodValue
   = to outputGetter
   where
     outputGetter a
-      = getMaybeOutput (view maybeFrom' a) (view events' a)
+      = lastGoodValue (view _eitherFrom a) (view _events a)
+
+
+
+lastGoodValue
+  :: forall rawType niceType e
+   . (rawType -> Either e niceType)
+  -> ControlEvents rawType
+  -> Either (EventError e) niceType
+lastGoodValue eitherFrom events
+  = case unwrap $ foldMap Last values of
+      Just a -> Right a
+      Nothing -> Left NoValue
+
+  where
+    values
+      = map (toMaybes <<< tryDecode eitherFrom) events
+
+    toMaybes a
+      = case a of
+             Right a' -> Just a'
+             Left e   -> Nothing
+
+tryDecode
+  :: forall rawType niceType e
+   . (rawType -> Either e niceType)
+  -> Event rawType
+  -> Either (EventError e) niceType
+tryDecode eitherFrom event
+  = case event of
+      OnChange a -> wrapError (eitherFrom a)
+      _          -> Left NoValue
 
 ---
 
-maybeOutputIsValid
-  :: forall i a 
-   . (i -> Maybe a) 
+getEitherOutput
+  :: forall i e a
+   . (i -> Either e a)
   -> ControlEvents i
-  -> Boolean
-maybeOutputIsValid maybeFrom events
-  = isJust (getMaybeOutput maybeFrom events)
+  -> Either (EventError e) a
+getEitherOutput eitherFrom events
+  = case mostRecentValue events of
+      Left e -> Left e
+      Right a -> wrapError (eitherFrom a)
 
-maybeOutputIsValid' 
-  :: forall rawType niceType r
-   . Getter' { events :: ControlEvents rawType 
-             , maybeFrom :: (rawType -> Maybe niceType)
-             | r 
-             } Boolean
-maybeOutputIsValid' 
-  = to isValid
+wrapError :: forall e a. Either e a -> Either (EventError e) a
+wrapError = left ValidationError 
+
+_getEitherOutput
+  :: forall rawType niceType e
+   . Getter' (PrismControl rawType niceType e) (Either (EventError e) niceType) 
+_getEitherOutput
+  = to outputGetter
   where
-    isValid a
-      = maybeOutputIsValid (view maybeFrom' a) (view events' a)
-
----
-
-getOutput'
-  :: forall rawType niceType r
-   . Getter' { events    :: ControlEvents rawType
-             , maybeFrom :: (rawType -> Maybe niceType)
-             , default   :: niceType
-             | r
-             } niceType
-getOutput'
-  = to getOutput
-  where
-    getOutput a
-      = fromMaybe (view default' a) 
-                  (getMaybeOutput (view maybeFrom' a) (view events' a))
+    outputGetter a
+      = getEitherOutput (view _eitherFrom a) (view _events a)
 
 ---
 
 createEmpty 
-  :: forall rawType niceType
-   . Prism' rawType niceType
-  -> PrismControl rawType niceType
-createEmpty prism''
-  = { events: []
-    , maybeFrom: preview prism''
-    , to:        review prism''
-    }
-
-createWithDefault
-  :: forall rawType niceType
-   . Prism' rawType niceType
-  -> niceType
-  -> PrismDefaultControl rawType niceType
-createWithDefault prism'' def
-  = { events: []
-    , maybeFrom: preview prism''
-    , to:        review prism''
-    , default:   def
-    }
+  :: forall rawType niceType e
+   . (niceType -> rawType)
+  -> (rawType -> Either e niceType)
+  -> PrismControl rawType niceType e
+createEmpty to from
+  = PrismControl
+      { events:    mempty
+      , eitherFrom: from
+      , to:        to
+      }
 
 log 
-  :: forall rawType r
+  :: forall rawType niceType e
    . Event rawType
-  -> { events :: ControlEvents rawType | r }
-  -> { events :: ControlEvents rawType | r }
+  -> PrismControl rawType niceType e
+  -> PrismControl rawType niceType e
 log a 
-  = over events' (addEvent a)
+  = over _events (addEvent a)
 
 addEvent :: forall a. a -> Array a -> Array a
 addEvent a as 
   = (as <> (pure a))
 
-
----- sample
 
