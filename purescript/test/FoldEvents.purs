@@ -11,7 +11,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Symbol (SProxy(..))
 
-
 import FoldEvents (Event(..), EventError(..), PrismControl, _getEitherOutput, _hasFocus, _lastGoodValue, createEmpty, log) 
 
 tests :: Free TestF Unit
@@ -21,15 +20,16 @@ tests = do
       Assert.equal (view _getEitherOutput petValue) (Left (ValidationError
                    (UnknownPet "oh")))
     test "Returns Just Dog when no most recent value" do
-      Assert.equal (view _getEitherOutput petWithValue) (Right Dog)
+       let petWithValue = log (OnChange "Dog") petValue 
+       Assert.equal (view _getEitherOutput petWithValue) (Right Dog)
     test "Finds last good value" do
        Assert.equal (view _lastGoodValue petValue) (Right Dog)
     test "Knows that we are not currently focused" do
        Assert.equal (view _hasFocus petValue) false
     test "Works nested in a record" do
-       Assert.equal (valIsFocused testRecord) false
+       Assert.equal (view (_val <<< _hasFocus) testRecord) false
     test "Updates work nested in a record" do
-       Assert.equal (valIsFocused testRecordWithVal) true
+       Assert.equal (view (_val <<< _hasFocus) testRecordWithVal) true
 
 data Pet
   = Dog
@@ -72,18 +72,22 @@ testing  = (log OnBlur)
 petValue :: PrismControl String Pet PetError
 petValue = testing (createEmpty toPet fromPet)
 
-petWithValue :: PrismControl String Pet PetError
-petWithValue = log (OnChange "Dog") petValue
-
 type TestRecord
-  = { val :: PrismControl String Pet PetError
+  = { val  :: PrismControl String Pet PetError
+    , val2 :: PrismControl String Pet PetError
     }
 
 testRecord :: TestRecord
-testRecord = { val: petValue }
+testRecord 
+  = { val:  createEmpty toPet fromPet
+    , val2: createEmpty toPet fromPet
+    }
 
 _val :: Lens' TestRecord (PrismControl String Pet PetError)
 _val = prop (SProxy :: SProxy "val")
+
+_val2 :: Lens' TestRecord (PrismControl String Pet PetError)
+_val2 = prop (SProxy :: SProxy "val2")
 
 valIsFocused 
   :: TestRecord 
@@ -92,3 +96,5 @@ valIsFocused = view (_val <<< _hasFocus)
 
 testRecordWithVal :: TestRecord
 testRecordWithVal = over _val (log OnFocus) testRecord
+
+
