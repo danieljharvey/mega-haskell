@@ -7,13 +7,17 @@ import           Data.Validation
 data Failures = TooLong | TooShort | ContainsEgg deriving (Show)
 
 checkTooLong :: String -> Validation [Failures] String
-checkTooLong = validate [TooLong] (\a -> length a < 10)
+checkTooLong = validate [TooLong] (\a -> if length a < 10
+                                         then Just a
+                                         else Nothing)
 
 lengthResult :: Validation [Failures] String
 lengthResult = checkTooLong "dog"
 
 containsEgg :: String -> Validation [Failures] String
-containsEgg = validate [ContainsEgg] (\a -> not $ "egg" `isInfixOf` a)
+containsEgg = validate [ContainsEgg] (\a -> if not ("egg" `isInfixOf` a)
+                                            then Just a
+                                            else Nothing)
 
 doesItContainEgg = containsEgg "eggeggeggegg"
 

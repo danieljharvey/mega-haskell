@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Comonad where
 
 import           Control.Comonad
@@ -87,7 +88,7 @@ startGrid = [ [True , False, False, True, False]
             ]
 
 gridHeight :: Grid -> Int
-gridHeight grid 
+gridHeight grid
   = length grid
 
 gridWidth :: Grid -> Int
@@ -100,13 +101,13 @@ startPoint :: Point
 startPoint = (2,2)
 
 getGridItem :: Grid -> Point -> Bool
-getGridItem grid (x,y) 
+getGridItem grid (x,y)
   = if withinBounds
        then item
        else False
   where
     withinBounds
-      =  (x > -1) 
+      =  (x > -1)
       && (x < gridWidth grid)
       && (y > -1)
       && (y < gridHeight grid)
@@ -163,27 +164,34 @@ class Functor w => Comonad (w :: * -> *) where
   {-# MINIMAL extract, (duplicate | extend) #-}
 -}
 
-data MyNonEmpty a 
-  = a :| [a] 
+data MyNonEmpty a
+  = a :| [a]
   deriving (Show, Ord, Eq)
 
 infixr 5 :|
 
-toList :: MyNonEmpty a -> [a] 
+singleton :: a -> MyNonEmpty a
+singleton item = item :| []
+
+toList :: MyNonEmpty a -> [a]
 toList (a :| as) = a : as
 
 instance Functor MyNonEmpty where
-  fmap f (a :| as) 
+  fmap f (a :| as)
     = (f a) :| (f <$> as)
 
 instance Comonad MyNonEmpty where
   extract (a :| _) = a
-  
-  duplicate all@(a :| []) 
+
+  duplicate all@(a :| [])
     = all :| []
-  
+
   duplicate all@(a :| (b : bs))
     = all :| (toList . duplicate $ (b :| bs))
+
+-- defer to list fold
+instance Foldable MyNonEmpty where
+  foldr f def as = foldr f def (toList as)
 
 niceList :: MyNonEmpty Int
 niceList = 1 :| [2,3,4,5,6,7]
@@ -193,15 +201,117 @@ productList
   = extend f niceList
   where
     f as =
-      getProduct $ foldMap Product (toList as)
+      getProduct $ foldMap Product as
 -- productList == 5040 :| [5040,2520,840,210,42,7]
 
 sumList :: MyNonEmpty Int
-sumList 
+sumList
   = extend f niceList
   where
     f as
-      = getSum $ foldMap Sum (toList as)
+      = getSum $ foldMap Sum as
 -- sumList == 28 :| [27,25,22,18,13,7]
+
+data Pet
+  = Horse
+  deriving (Show)
+
+data Event
+  = OnBlur
+  | OnFocus
+  deriving (Eq, Ord, Show)
+
+changeStream :: MyNonEmpty String
+changeStream = "h" :| [ "ho", "hor", "hors", "horse", "horses" ]
+
+eventStream :: [Event]
+eventStream = [ OnBlur, OnFocus, OnFocus ]
+
+hasBlurred :: [Event] -> Bool
+hasBlurred = foldl (\as a -> as || a == OnBlur) False
+
+-- bad comonad
+getPet :: MyNonEmpty String -> Maybe Pet
+getPet = foldr (\s _ -> case s of
+             "horse" -> Just Horse
+             _       -> Nothing) Nothing
+
+validated :: MyNonEmpty (Maybe Pet)
+validated = extend getPet changeStream
+
+data Zipper a
+  = Zipper
+      { prev  :: [a]
+      , value ::  a
+      , next  :: [a]
+      }
+  deriving (Eq, Ord, Show, Functor)
+
+lastMaybe :: [a] -> Maybe a
+lastMaybe (x : []) = Just x
+lastMaybe (_ : xs) = lastMaybe xs
+lastMaybe _        = Nothing
+
+headMaybe :: [a] -> Maybe a
+headMaybe []      = Nothing
+headMaybe (a : _) = Just a
+
+shuffleLeft :: Zipper a -> Zipper a
+shuffleLeft a
+  = case lastMaybe (prev a) of
+      Just prevItem ->
+        Zipper
+           { prev = init (prev a)
+           , value = prevItem
+           , next = (pure (value a)) <> next a
+           }
+      _ -> a
+
+shuffleRight :: Zipper a -> Zipper a
+shuffleRight a
+  = case headMaybe (next a) of
+      Just nextItem ->
+        Zipper
+           { prev = (prev a) <> (pure $ value a)
+           , value = nextItem
+           , next = drop 1 (next a)
+           }
+      _ -> a
+
+startZip :: Zipper Int
+startZip
+  = Zipper
+      { prev  = []
+      , value = 1
+      , next  = [2,3]
+      }
+
+endZip = (applyNTimes 3 shuffleRight startZip)
+
+-- $> (shuffleLeft startZip) == startZip
+
+-- $> shuffleRight startZip
+
+-- $> applyNTimes 2 shuffleRight startZip == endZip
+
+applyNTimes :: Int -> (a -> a) -> a -> a
+applyNTimes n f
+  = foldr (.) id (replicate n f)
+
+mapInd :: (a -> Int -> b) -> [a] -> [b]
+mapInd f l = zipWith f l [1..]
+
+instance Comonad Zipper where
+  extract = value
+
+  duplicate a
+    = Zipper
+        { prev  = mapInd (\_ i -> (applyNTimes i shuffleLeft) a) (prev a)
+        , value = a
+        , next  = mapInd (\_ i -> (applyNTimes i shuffleRight) a) (next a)
+        }
+
+duplicated = extend id startZip
+-- $> duplicated
 
 
