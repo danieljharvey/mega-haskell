@@ -1,3 +1,5 @@
-# mega-haskell
+# Mega Haskell Monorepo
 
-Here is the code for the articles on the big blog.
+Monn - Or - Rep - Oh
+
+All the things, in one discoverable lump.
