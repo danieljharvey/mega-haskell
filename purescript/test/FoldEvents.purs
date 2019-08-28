@@ -2,6 +2,7 @@ module Tests.FoldEvents where
 
 import Prelude
 import Data.Either (Either(..))
+import Data.Maybe (Maybe(..))
 import Control.Monad.Free (Free)
 import Test.Unit (suite, test, TestF)
 import Test.Unit.Assert as Assert
@@ -11,25 +12,24 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Symbol (SProxy(..))
 
-import FoldEvents (Event(..), EventError(..), PrismControl, _getEitherOutput, _hasFocus, _lastGoodValue, createEmpty, log) 
+import FoldEvents (Event(..), PrismControl, createEmpty, currentValue, hasFocus, lastGoodValue, logEvent, logValue)
 
 tests :: Free TestF Unit
 tests = do
   suite "FoldEvents" do
     test "Returns Nothing when no most recent value" do
-      Assert.equal (view _getEitherOutput petValue) (Left (ValidationError
-                   (UnknownPet "oh")))
+      Assert.equal (currentValue petValue) (Left (UnknownPet "oh"))
     test "Returns Just Dog when no most recent value" do
-       let petWithValue = log (OnChange "Dog") petValue 
-       Assert.equal (view _getEitherOutput petWithValue) (Right Dog)
+       let petWithValue = logValue "Dog" petValue 
+       Assert.equal (currentValue petWithValue) (Right Dog)
     test "Finds last good value" do
-       Assert.equal (view _lastGoodValue petValue) (Right Dog)
+       Assert.equal (lastGoodValue petValue) (Just Dog)
     test "Knows that we are not currently focused" do
-       Assert.equal (view _hasFocus petValue) false
+       Assert.equal (hasFocus petValue) false
     test "Works nested in a record" do
-       Assert.equal (view (_val <<< _hasFocus) testRecord) false
+       Assert.equal (hasFocus $ view _val testRecord) false
     test "Updates work nested in a record" do
-       Assert.equal (view (_val <<< _hasFocus) testRecordWithVal) true
+       Assert.equal (hasFocus $ view _val testRecordWithVal) true
 
 data Pet
   = Dog
@@ -60,17 +60,21 @@ fromPet = case _ of
 toPet :: Pet -> String
 toPet   = show
 
-testing 
+---
+
+
+addTestValues 
   :: PrismControl String Pet PetError
   -> PrismControl String Pet PetError
-testing  = (log OnBlur)
-       <<< (log OnFocus)
-       <<< (log (OnChange "oh"))
-       <<< (log (OnChange "Dog"))
-       <<< (log (OnChange "Doge"))
+addTestValues  
+  = (logEvent OnBlur)
+       <<< (logEvent OnFocus)
+       <<< (logValue "oh")
+       <<< (logValue "Dog")
+       <<< (logValue "Doge")
 
 petValue :: PrismControl String Pet PetError
-petValue = testing (createEmpty toPet fromPet)
+petValue = addTestValues (createEmpty "" toPet fromPet)
 
 type TestRecord
   = { val  :: PrismControl String Pet PetError
@@ -79,8 +83,8 @@ type TestRecord
 
 testRecord :: TestRecord
 testRecord 
-  = { val:  createEmpty toPet fromPet
-    , val2: createEmpty toPet fromPet
+  = { val:  createEmpty "" toPet fromPet
+    , val2: createEmpty "" toPet fromPet
     }
 
 _val :: Lens' TestRecord (PrismControl String Pet PetError)
@@ -92,9 +96,10 @@ _val2 = prop (SProxy :: SProxy "val2")
 valIsFocused 
   :: TestRecord 
   -> Boolean
-valIsFocused = view (_val <<< _hasFocus) 
+valIsFocused = hasFocus <<< view _val
 
 testRecordWithVal :: TestRecord
-testRecordWithVal = over _val (log OnFocus) testRecord
+testRecordWithVal 
+  = over _val (logEvent OnFocus) testRecord
 
 
