@@ -19,6 +19,7 @@
     "pscid:test": "pscid test/Main.purs"
   },
   "dependencies": {
+    "purty": "^4.5.1",
     "spago": "^0.9.0"
   }
 }
