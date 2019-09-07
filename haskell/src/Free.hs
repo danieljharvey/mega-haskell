@@ -18,12 +18,115 @@ import           Control.Monad.Free
 import qualified Control.Monad.State       as St
 import           Control.Monad.Writer.Lazy hiding (Sum)
 import           Data.Functor.Sum
+import           Data.Monoid (Product(..))
 import           Data.Kind
 import           Network.Curl
 import           Prelude
 import           System.Exit
 
--- our first data type
+--
+
+-- a classic program
+firstAndSecondCombine 
+  :: (Semigroup a) 
+  => [a] 
+  -> [a] 
+  -> Maybe a
+firstAndSecondCombine as bs = do
+  a <- first' as
+  b <- first' bs
+  pure (a <> b)
+
+-- helper functions
+
+-- get first item (if there is one)
+first' :: [a] -> Maybe a
+first' stuff 
+    = case stuff of
+        (x:_) -> Just x
+        _     -> Nothing
+
+ans1 :: Maybe (Product Int)
+ans1 = firstAndSecondCombine [Product 10] [Product 20, Product 5]
+-- ans1 == Just (Product 200)
+
+-- lets define it using free
+data MoybeF a
+  = Jost a
+  | Nothong
+  deriving (Show)
+
+instance Functor MoybeF where
+  fmap _ Nothong  = Nothong
+  fmap f (Jost a) = Jost (f a)
+
+-- let's put the coat on our structure
+type Moybe a = Free MoybeF a
+
+jost :: a -> Moybe a 
+jost = liftF . Jost
+
+nothong :: Moybe a
+nothong = liftF Nothong
+
+-- get first item (if there is one)
+fFirst' :: [a] -> Moybe a
+fFirst' stuff 
+    = case stuff of
+        (x:_) -> jost x
+        _     -> nothong
+
+fFirstAndSecondCombine 
+  :: (Semigroup a) 
+  => [a] 
+  -> [a] 
+  -> Moybe a
+fFirstAndSecondCombine as bs = do
+  a <- fFirst' as
+  b <- fFirst' bs
+  pure (a <> b)
+
+-- what is Moybe? A data structure describing a computation
+-- what can we do with it?
+interpretMaybe :: Moybe a -> Maybe a
+interpretMaybe
+  = foldFree interpret
+  where
+    interpret :: MoybeF a -> Maybe a
+    interpret prog'
+      = case prog' of
+          Jost a  -> Just a
+          Nothong -> Nothing
+
+ans2 :: Maybe (Product Int)
+ans2 = interpretMaybe (fFirstAndSecondCombine [Product 10] [Product 20, Product 5])
+-- ans2 == Just (Product 200)
+
+ans3 :: Maybe (Product Int)
+ans3 = interpretMaybe (fFirstAndSecondCombine [] [Product 20, Product 5])
+-- ans3 == Nothing
+
+-- what is Moybe? A data structure describing a computation
+-- what can we do with it?
+interpretEither :: Moybe a -> Either String a
+interpretEither
+  = foldFree interpret
+  where
+    interpret :: MoybeF a -> Either String a
+    interpret prog'
+      = case prog' of
+          Jost a  -> Right a
+          Nothong -> Left "Nah, that didn't work"
+
+ans4 :: Either String (Product Int)
+ans4 = interpretEither (fFirstAndSecondCombine [Product 10] [Product 20, Product 5])
+-- ans4 == Right (Product 200)
+
+ans5 :: Either String (Product Int)
+ans5 = interpretEither (fFirstAndSecondCombine [] [Product 20, Product 5])
+-- ans5 == Left "Nah, that didn't work"
+
+-- the more classic IO example
 
 data ConsoleF a
   = Write String a
@@ -40,9 +143,6 @@ fWrite str = liftF $ Write str ()
 
 fRead :: Console String
 fRead = liftF $ Read id
-
-fStop :: Console ()
-fStop = pure ()
 
 consoleProg :: Console ()
 consoleProg = do
@@ -77,10 +177,14 @@ interpretConsoleWrite prog'
 
 -- and another
 
+newtype Url 
+  = Url { getUrl :: String }
+    deriving (Eq, Ord, Show)
+
 data ReducerF s a
   = Modify (s -> s) a
   | Get (s -> a)
-  | Fetch String (String -> a)
+  | Fetch Url (String -> a)
   deriving (Functor)
 
 type Reducer s a
@@ -88,7 +192,7 @@ type Reducer s a
 
 data State
   = State { string  :: Maybe String
-          , url     :: String
+          , url     :: Url
           , loading :: Bool
           }
   deriving (Eq, Ord, Show)
@@ -96,7 +200,7 @@ data State
 modify :: (s -> s) -> Reducer s ()
 modify f = liftF $ Modify f ()
 
-fetch :: String -> Reducer s String
+fetch :: Url -> Reducer s String
 fetch url = liftF $ Fetch url id
 
 get :: Reducer s s
@@ -137,7 +241,7 @@ interpretReducerStateIO prog'
       Get next ->
         next <$> St.get
       Fetch url next -> do
-        (_, s) <- lift $ curlGetString url []
+        (_, s) <- lift $ curlGetString (getUrl url) []
         pure (next s)
 
 -- snd <$> runStateT (interpretStateIO fetchAction) initialState
@@ -145,7 +249,7 @@ interpretReducerStateIO prog'
 initialState :: State
 initialState
   = State { string = Nothing
-          , url = "http://internetisverymuchmybusiness.com"
+          , url = Url "http://internetisverymuchmybusiness.com"
           , loading = False
           }
 
@@ -169,7 +273,7 @@ modify' :: (s -> s) -> Combined s ()
 modify' f
   = liftF $ InR $ Modify f ()
 
-fetch' :: String -> Combined s String
+fetch' :: Url -> Combined s String
 fetch' url
   = liftF $ InR $ Fetch url id
 
@@ -264,7 +368,7 @@ modifyF f
 
 fetchF
   :: forall big s. (Functor (big s), Lifty (big s) (ReducerF s))
-  => String
+  => Url
   -> Free (big s) String
 fetchF url
   = liftF $ lifty $ (Fetch @s) url id

@@ -12,6 +12,6 @@ spec =
       it "Doesn't break with second Nope" $
         St.runState (interpretState fetchAction) initialState
           `shouldBe` ((), State { string = Just "test item"
-                                , url = "http://internetisverymuchmybusiness.com"
+                                , url = Url "http://internetisverymuchmybusiness.com"
                                 , loading = False
                                 })
