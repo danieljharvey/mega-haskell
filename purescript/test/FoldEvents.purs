@@ -69,3 +69,17 @@ addTestValues =
 
 petValue :: MiniStore String Pet PetError
 petValue = addTestValues (createEmpty "" toPet fromPet)
+
+---
+
+type SampleData
+  = { firstThing :: Pet
+    , secondThing :: Pet
+    }
+
+type TwoDifferentPets = Tuple Pet
+
+data SamePets = SamePets
+
+combined :: MiniStore SampleData TwoDifferentPets SamePets
+combined = createEmpty { firstThing: Dog, secondThing: Dog } 
