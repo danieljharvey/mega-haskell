@@ -42,6 +42,7 @@ library
                   , Viewfunctor
                   , Combinators
                   , Semilattice
+                  , Cofree
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -105,6 +106,7 @@ test-suite unit-tests
                   , Validation
                   , Testing
                   , Typelevel
+                  , Cofree
                   , Maybe
                   , MaybeSpec
                   , Either
