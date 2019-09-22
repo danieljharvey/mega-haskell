@@ -18,9 +18,16 @@ packages:
       sha256: 92c37318759cbff761155e9d23f786a1e0b62f154cb3edfb6e87f91bc7bf821c
   original:
     hackage: trivial-constraint-0.5.1.0@sha256:80f052aa9527ed23fe4bf5066535d5a393a1573b9c193a4cddd2c51ab12b310f
+- completed:
+    hackage: semilattices-0.0.0.3@sha256:215d40aa231ed1786211809a5f4b7768a708a8ac1625507b9d5ddb4929323a8e,2108
+    pantry-tree:
+      size: 801
+      sha256: 88d3e9a8a00ed972dfb6f7723a2f099134965b9e234867716670b992ed3a69b9
+  original:
+    hackage: semilattices-0.0.0.3@sha256:215d40aa231ed1786211809a5f4b7768a708a8ac1625507b9d5ddb4929323a8e
 snapshots:
 - completed:
-    size: 523454
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/2.yaml
-    sha256: 593deeb8366fd69b9e3b7611759ecee87d0d76c08c2ba363b38b7fb119e9fc22
-  original: lts-14.2
+    size: 523884
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/4.yaml
+    sha256: 16f24be248b42c9e16d59db84378836b1e7c239448a041cae46d32daffa45a8b
+  original: lts-14.4

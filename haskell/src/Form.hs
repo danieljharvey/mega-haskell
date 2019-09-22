@@ -62,7 +62,21 @@ testButton = Item "Bum" Decrease
 
 
 
+type UI2 = String
 
+newtype Form2 i a =
+  Form2 { getForm2 :: i -> FormReturn2 i a }
 
+instance Functor (Form2 i) where
+  fmap f form =
+    Form2 (\i -> f <$> ((getForm2 form) i))
 
+data FormReturn2 i a
+  = FormReturn2 { render2 :: (i -> IO ()) -> UI2
+                , result2 :: Maybe a
+                }
+
+instance Functor (FormReturn2 i) where
+  fmap f (FormReturn2 render2 result2 )
+    = FormReturn2 { render2 = render2, result2 =  (f <$> result2) }
 

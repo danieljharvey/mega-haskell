@@ -15,6 +15,7 @@ You can edit this file as you like.
     , "generics-rep"
     , "heterogeneous"
     , "identity"
+    , "naturals"
     , "prelude"
     , "psci-support"
     , "test-unit"

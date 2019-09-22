@@ -41,6 +41,7 @@ library
                   , Schema
                   , Viewfunctor
                   , Combinators
+                  , Semilattice
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -63,6 +64,8 @@ library
                   , transformers
                   , ghc-prim
                   , functor-combinators
+                  , semilattices
+                  , generic-lens
   default-language: Haskell2010
 
 test-suite unit-tests
@@ -158,3 +161,5 @@ test-suite unit-tests
                 , hspec-discover
                 , ghc-prim
                 , functor-combinators
+                , semilattices
+                , generic-lens
