@@ -3,6 +3,7 @@ module Tests.FoldEvents where
 import Prelude
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Data.Tuple
 import Control.Monad.Free (Free)
 import Test.Unit (suite, test, TestF)
 import Test.Unit.Assert as Assert
@@ -81,5 +82,9 @@ type TwoDifferentPets = Tuple Pet
 
 data SamePets = SamePets
 
+{-
 combined :: MiniStore SampleData TwoDifferentPets SamePets
-combined = createEmpty { firstThing: Dog, secondThing: Dog } 
+combined = createEmpty 
+    { firstThing: Dog, secondThing: Dog } 
+
+-}

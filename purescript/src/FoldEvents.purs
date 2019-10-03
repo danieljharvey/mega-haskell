@@ -12,6 +12,7 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.Maybe.Last (Last(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Symbol (SProxy(..))
+import Data.Tuple
 
 ---
 newtype MiniStore rawType niceType err
