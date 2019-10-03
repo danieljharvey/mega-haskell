@@ -20,6 +20,7 @@ You can edit this file as you like.
     , "psci-support"
     , "test-unit"
     , "typelevel"
+    , "validation"
     , "variant"
     ]
 , packages =
