@@ -8,11 +8,10 @@ data Horse = SmallHorse | LargeHorse | OtherHorse
 data BetterHorse = Tiny | Average | Huge
 
 instance Eq BetterHorse where
-    Tiny == Tiny = True
-    Average == Average = True
-    Huge == Huge = True
-    _ == _ = False
-
+  Tiny == Tiny = True
+  Average == Average = True
+  Huge == Huge = True
+  _ == _ = False
 
 isSameBetterHorse :: BetterHorse -> BetterHorse -> Bool
 isSameBetterHorse firstHorse secondHorse = firstHorse == secondHorse
@@ -26,5 +25,3 @@ yep = isSameBetterHorse Average Average
 data LazyHorse = LazyTiny | LazyOther deriving (Eq)
 
 workingNow = LazyTiny == LazyOther
-
-

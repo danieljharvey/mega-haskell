@@ -20,6 +20,7 @@ addOne i = i + 1
 
 biggerNumber :: Things String Int
 biggerNumber = fmap addOne (That 68)
+
 -- biggerNumber == That 69
 
 eat :: String -> String
@@ -33,6 +34,7 @@ doesntWork = fmap eat thisEgg
 
 doesNothing :: Things String Int
 doesNothing = fmap addOne thisEgg
+
 -- doesNothing = This "Egg"
 
 -- let's make a bifunctor
@@ -51,10 +53,12 @@ instance Bifunctor Things where
 
 delicious :: Things String Int
 delicious = first eat (This "Egg")
+
 -- delicious = This "The Egg was delicious!"
 
 doesWork :: Things String Int
 doesWork = second addOne thatNumber
+
 -- doesWork == That 69
 
 twoThings :: (Int, String)
@@ -64,4 +68,4 @@ myConst :: a -> b -> a
 myConst a _ = a
 
 oneBestSeller :: (Int, String)
-oneBestSeller = bimap (+1) (myConst "Dalmations") twoThings
+oneBestSeller = bimap (+ 1) (myConst "Dalmations") twoThings

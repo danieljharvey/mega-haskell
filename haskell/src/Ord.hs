@@ -1,6 +1,6 @@
 module Ord where
 
-import           Data.List
+import Data.List
 
 data Mood = Awful | QuiteBad | OK | Good | Great
 
@@ -10,24 +10,28 @@ data Mood = Awful | QuiteBad | OK | Good | Great
 data SuperMood = Worse | PrettyAverage | Fine deriving (Eq, Show)
 
 instance Ord SuperMood where
-    _ <= Fine = True
-    Worse <= PrettyAverage = True
-    _ <= _ = False
+  _ <= Fine = True
+  Worse <= PrettyAverage = True
+  _ <= _ = False
 
 yep :: Bool
 yep = Worse < PrettyAverage
+
 -- yep = True
 
 yep2 :: Bool
 yep2 = Fine > Worse
+
 -- yep2 = True
 
 yep3 :: Bool
 yep3 = Fine >= Fine
+
 -- yep2 = True
 
 nope :: Bool
 nope = Fine < Fine
+
 -- nope = False
 
 moods :: [SuperMood]

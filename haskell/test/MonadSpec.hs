@@ -1,9 +1,9 @@
 module MonadSpec where
 
-import           Control.Monad.Writer
-import           Monad
-import           Prelude              hiding (Monad)
-import           Test.Hspec
+import Control.Monad.Writer
+import Monad
+import Test.Hspec
+import Prelude hiding (Monad)
 
 -- spec :: IO ()
 spec =
@@ -25,7 +25,7 @@ spec =
       it "head3 with empty" $
         head3 ([] :: [[[Int]]]) `shouldBe` Nothing
       it "head3 with stuff" $
-        head3 [[[1,2,3]]] `shouldBe` Just 1
+        head3 [[[1, 2, 3]]] `shouldBe` Just 1
     describe "Either" $ do
       it "Is empty" $
         validate "" `shouldBe` Left IsEmpty
@@ -37,12 +37,12 @@ spec =
         validate "Hello" `shouldBe` Right "Hello"
     describe "List" $ do
       it "Wee thing" $
-        moreList 1 `shouldBe` [0,1,2]
+        moreList 1 `shouldBe` [0, 1, 2]
       it "Makes one big list" $
-        lotsMoreList 1 `shouldBe` [-1,0,1,0,1,2,1,2,3]
-    describe "Reader" $
-      it "Runs withConfig" $
-        withConfig `shouldBe` "The ip address is 127.0.0.1, the name is localhost"
-    describe "Writer" $
-      it "Runs maths" $
-        runWriter (maths 10) `shouldBe` (22, "Add one times two ")
+        lotsMoreList 1 `shouldBe` [-1, 0, 1, 0, 1, 2, 1, 2, 3]
+    describe "Reader"
+      $ it "Runs withConfig"
+      $ withConfig `shouldBe` "The ip address is 127.0.0.1, the name is localhost"
+    describe "Writer"
+      $ it "Runs maths"
+      $ runWriter (maths 10) `shouldBe` (22, "Add one times two ")

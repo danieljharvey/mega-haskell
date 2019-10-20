@@ -3,14 +3,14 @@ module EffectAndAff where
 import Prelude (Unit, bind, discard, pure, unit, ($), mempty)
 import Data.Show (class Show, show)
 import Data.Either (Either(..))
-
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Effect.Timer
 import Effect.Console (log)
 import Effect.Aff (Aff, Canceler, Error, makeAff, runAff_)
 
-newtype TimeReturn = TimeReturn TimeoutId
+newtype TimeReturn
+  = TimeReturn TimeoutId
 
 instance showTimeoutId :: Show TimeReturn where
   show _ = "TIMEOUTID"
@@ -21,62 +21,79 @@ callbackWithDelay a cb = do
   pure (TimeReturn timeoutId)
 
 manyCallbacks :: forall a. a -> (a -> Effect Unit) -> Effect Unit
-manyCallbacks a cb
-  = do
-      log "1"
-      _ <- callbackWithDelay a
-        (\b -> do
+manyCallbacks a cb = do
+  log "1"
+  _ <-
+    callbackWithDelay a
+      ( \b -> do
           log "2"
-          _ <- callbackWithDelay b
-            (\c -> do
-              log "3"
-              _ <- callbackWithDelay c
-                (\d -> do
+          _ <-
+            callbackWithDelay b
+              ( \c -> do
                   log "3"
-                  _ <- callbackWithDelay d
-                    (\e -> do
-                      log "4"
-                      _ <- callbackWithDelay e
-                        (\f -> do
-                          log "5"
-                          _ <- callbackWithDelay f
-                            (\g -> do
-                              log "6"
-                              _ <- callbackWithDelay g
-                                (\h -> do
-                                  log "7"
-                                  _ <- callbackWithDelay h
-                                    (\i -> do
-                                      log "8"
-                                      _ <- callbackWithDelay i
-                                        (\j -> do
-                                          log "9"
-                                          _ <- cb j
-                                          pure unit)
-                                      pure unit)
-                                  pure unit)
-                              pure unit)
-                          pure unit)
-                      pure unit)
-                  pure unit)
-              pure unit)
-          pure unit)
-      pure unit
+                  _ <-
+                    callbackWithDelay c
+                      ( \d -> do
+                          log "3"
+                          _ <-
+                            callbackWithDelay d
+                              ( \e -> do
+                                  log "4"
+                                  _ <-
+                                    callbackWithDelay e
+                                      ( \f -> do
+                                          log "5"
+                                          _ <-
+                                            callbackWithDelay f
+                                              ( \g -> do
+                                                  log "6"
+                                                  _ <-
+                                                    callbackWithDelay g
+                                                      ( \h -> do
+                                                          log "7"
+                                                          _ <-
+                                                            callbackWithDelay h
+                                                              ( \i -> do
+                                                                  log "8"
+                                                                  _ <-
+                                                                    callbackWithDelay i
+                                                                      ( \j -> do
+                                                                          log "9"
+                                                                          _ <- cb j
+                                                                          pure unit
+                                                                      )
+                                                                  pure unit
+                                                              )
+                                                          pure unit
+                                                      )
+                                                  pure unit
+                                              )
+                                          pure unit
+                                      )
+                                  pure unit
+                              )
+                          pure unit
+                      )
+                  pure unit
+              )
+          pure unit
+      )
+  pure unit
 
 delayAff :: forall a. a -> Aff a
 delayAff a = makeAff affCallback
   where
-    affCallback :: (Either Error a -> Effect Unit) -> Effect Canceler
-    affCallback success
-      = do
-          _ <- callbackWithDelay a (\b -> success (Right b))
-          pure mempty
+  affCallback :: (Either Error a -> Effect Unit) -> Effect Canceler
+  affCallback success = do
+    _ <- callbackWithDelay a (\b -> success (Right b))
+    pure mempty
 
-    makeCanceller :: TimeoutId -> Error -> Aff Unit
-    makeCanceller timer
-      = (\_ -> do
-          liftEffect $ clearTimeout timer
-          pure unit)
+  makeCanceller :: TimeoutId -> Error -> Aff Unit
+  makeCanceller timer =
+    ( \_ -> do
+        liftEffect $ clearTimeout timer
+        pure unit
+    )
 
 goTimer :: forall a. (Show a) => a -> Effect Unit
 goTimer a = do

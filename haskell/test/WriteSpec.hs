@@ -1,9 +1,9 @@
 module WriteSpec where
 
-import           Control.Exception (evaluate)
-import           Test.Hspec
-import           Test.QuickCheck
-import           Write
+import Control.Exception (evaluate)
+import Test.Hspec
+import Test.QuickCheck
+import Write
 
 spec = do
   describe "Style" $ do

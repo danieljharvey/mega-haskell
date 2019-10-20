@@ -1,9 +1,9 @@
 module ContravariantSpec where
 
-import           Contravariant
-import           Control.Exception (evaluate)
-import           Test.Hspec
-import           Test.QuickCheck
+import Contravariant
+import Control.Exception (evaluate)
+import Test.Hspec
+import Test.QuickCheck
 
 -- spec :: IO ()
 spec =

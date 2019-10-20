@@ -1,42 +1,42 @@
 module ComonadSpec where
 
-import           Comonad
-import           Control.Comonad.Store
-import           Control.Exception     (evaluate)
-import           Test.Hspec
-import           Test.QuickCheck
+import Comonad
+import Control.Comonad.Store
+import Control.Exception (evaluate)
+import Test.Hspec
+import Test.QuickCheck
 
 -- spec :: IO ()
 spec = do
   describe "Which Comonad" $ do
     it "currentPosition" $
-        currentPosition `shouldBe` This
+      currentPosition `shouldBe` This
     it "somethingElse" $
-        somethingElse `shouldBe` "that other thing"
+      somethingElse `shouldBe` "that other thing"
     it "swapped" $
-        swapped `shouldBe` "that other thing"
+      swapped `shouldBe` "that other thing"
     it "itsThat" $
-        itsThat `shouldBe` That
+      itsThat `shouldBe` That
     it "nowItsWho" $
-        nowItsWho `shouldBe` Who
+      nowItsWho `shouldBe` Who
     it "what" $
-        what `shouldBe` Just "this thing"
+      what `shouldBe` Just "this thing"
     it "otherWhat" $
-        otherWhat `shouldBe` Just "that other thing"
+      otherWhat `shouldBe` Just "that other thing"
     it "otherOtherWhat" $
-        otherOtherWhat `shouldBe` Nothing
+      otherOtherWhat `shouldBe` Nothing
   describe "Battenburg" $ do
     it "seems ok" $
-        getBattenType (First, First) `shouldBe` Pink
+      getBattenType (First, First) `shouldBe` Pink
     it "seems ok" $
-        getBattenType (Middle, First) `shouldBe` Other
+      getBattenType (Middle, First) `shouldBe` Other
   describe "Grid" $ do
     it "Gets 0,0" $
-      getGridItem startGrid (0,0) `shouldBe` True
+      getGridItem startGrid (0, 0) `shouldBe` True
     it "Gets 2,2" $
-      getGridItem startGrid (2,2) `shouldBe` False
+      getGridItem startGrid (2, 2) `shouldBe` False
     it "Gets 5,5" $
-      getGridItem startGrid (3,3) `shouldBe` True
+      getGridItem startGrid (3, 3) `shouldBe` True
     it "Deals with underflow" $
       getGridItem startGrid (-10, -10) `shouldBe` False
     it "Deals with overflow" $
@@ -53,4 +53,4 @@ spec = do
     it "Sums the list using extend" $
       sumList `shouldBe` 28 :| [27, 25, 22, 18, 13, 7]
     it "Products the list using extend" $
-      productList `shouldBe` 5040 :| [5040,2520,840,210,42,7]
+      productList `shouldBe` 5040 :| [5040, 2520, 840, 210, 42, 7]

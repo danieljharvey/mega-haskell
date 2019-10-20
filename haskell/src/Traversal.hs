@@ -1,7 +1,7 @@
 module Traversal where
 
-import Data.Monoid
 import Data.Maybe
+import Data.Monoid
 import Data.Validation
 
 data MyTree a = Leaf a | Branch (MyTree a) (MyTree a) deriving (Show, Eq)
@@ -15,6 +15,7 @@ instance Foldable MyTree where
 
 sampleTreeTotal :: Int
 sampleTreeTotal = getSum $ foldMap Sum sampleTree
+
 -- sampleTreeTotal == 12
 
 maybeTree :: MyTree (Maybe Int)
@@ -26,6 +27,7 @@ maybeAdd _ _ = Nothing
 
 maybeTreeTotal :: Maybe Int
 maybeTreeTotal = foldr maybeAdd (Just 0) maybeTree
+
 -- maybeTreeTotal == Just 12
 
 instance Functor MyTree where
@@ -48,6 +50,7 @@ instance Traversable MyTree where
 
 justTree :: Maybe (MyTree Int)
 justTree = sequence maybeTree
+
 -- justTree == Just (Branch (Branch (Leaf 2) (Leaf 3)) (Branch (Leaf 5) (Leaf 2)))
 
 anotherMaybeTree :: MyTree (Maybe Int)
@@ -55,14 +58,16 @@ anotherMaybeTree = Branch (Branch (Leaf Nothing) (Leaf $ Just 3)) (Branch (Leaf 
 
 nothingTree :: Maybe (MyTree Int)
 nothingTree = sequence anotherMaybeTree
+
 -- nothingTree == Nothing
 
 -- traverse id = sequence
 listTree :: MyTree ([Int])
-listTree = Branch (Leaf [1,2]) (Leaf [3,4])
+listTree = Branch (Leaf [1, 2]) (Leaf [3, 4])
 
 invertedListTree :: [MyTree Int]
 invertedListTree = sequence listTree
+
 {-
 invertedListTree ==
   [ Branch (Leaf 1) (Leaf 3)
@@ -74,6 +79,7 @@ invertedListTree ==
 
 reversedListTree :: [MyTree Int]
 reversedListTree = traverse reverse listTree
+
 {-
 reversedListTree ==
   [ Branch (Leaf 2) (Leaf 4)
@@ -88,14 +94,17 @@ eitherTree = Branch (Leaf $ Right 100) (Leaf $ Right 200)
 
 rightTree :: Either String (MyTree Int)
 rightTree = sequence eitherTree
+
 -- rightTree == Right (Branch (Leaf 100) (Leaf 200))
 
 failsTree :: Either String (MyTree Int)
 failsTree = sequence $ Branch (Leaf $ Right 1) (Leaf $ Left "2")
+
 -- "Left 2"
 
 failsTree2 :: Either String (MyTree Int)
 failsTree2 = sequence $ Branch (Leaf $ Left "1") (Branch (Leaf $ Left "2") (Leaf $ Left "3"))
+
 -- "Left 1"
 
 -- validation!

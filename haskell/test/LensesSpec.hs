@@ -1,10 +1,10 @@
 module LensesSpec where
 
-import           Control.Exception (evaluate)
-import           Control.Lens
-import           Lenses
-import           Test.Hspec
-import           Test.QuickCheck
+import Control.Exception (evaluate)
+import Control.Lens
+import Lenses
+import Test.Hspec
+import Test.QuickCheck
 
 -- spec :: IO ()
 spec = do
@@ -63,7 +63,7 @@ spec = do
     it "gets port with lens" $
       view fullPortLens appData `shouldBe` 8080
     it "increments the port with lens" $
-      getPort (over fullPortLens (+1) appData) `shouldBe` 8081
+      getPort (over fullPortLens (+ 1) appData) `shouldBe` 8081
     it "sets the port with lens" $
       getPort (set fullPortLens 10 appData) `shouldBe` 10
     it "gets 'count' when it's Right with lens" $

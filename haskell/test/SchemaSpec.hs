@@ -1,28 +1,28 @@
-{-# LANGUAGE AllowAmbiguousTypes    #-}
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE DeriveAnyClass         #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs                  #-}
-{-# LANGUAGE KindSignatures         #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeApplications       #-}
-{-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-{-# LANGUAGE PolyKinds              #-}
-{-# LANGUAGE TypeFamilies           #-}
 module SchemaSpec where
 
-import           Data.Aeson
-import           Data.Maybe
-import           Schema
-import           Test.Hspec
+import Data.Aeson
+import Data.Maybe
+import Schema
+import Test.Hspec
 
 -- type equivalence tests
 
@@ -52,30 +52,25 @@ spec =
         let json = encode (Older "a" "b" "c")
         let tryDecoding = decodeVia @"User" @0 @2 json
         isJust tryDecoding `shouldBe` True
-
       it "Decodes and converts Older to Older" $ do
         let tryDecoding2 = decodeVia @"User" @0 @0 (encode (Older "bo" "f" "f"))
         isJust tryDecoding2 `shouldBe` True
-
       it "Can decode any Schema with WeakSchema" $ do
         let json = encode (Older "don't" "do" "drugs")
         let tryMaybeDecode = tryDecodeVia @"User" @0 @2 json
         isJust tryMaybeDecode `shouldBe` True
-
       it "Fails to convert a WeakSchema where the data is invalid" $ do
         let json = encode (Older "ham" "man" "wham")
         isJust (tryDecodeVia @"User" @0 @3 json) `shouldBe` False
-
       it "Succeeds in converting a WeakSchema" $ do
         let json = encode (Older "Me" "Yes" "dog")
         isJust (tryDecodeVia @"User" @0 @3 json) `shouldBe` True
-
     describe "Converting" $ do
       it "Updates an old object to new" $ do
         let older = Older "What" "Sure" "great"
         let newUser = generallyUpdate @0 @2 @"User" older
         firstName newUser `shouldBe` FirstName (Name "What")
-          {-
+{-
     describe "Json decoding" $ do
       it "Creates a FromJSON instance" $ do
         let json = encode (Older "Yeah" "Sure" "Why?")

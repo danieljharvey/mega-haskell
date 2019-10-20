@@ -1,7 +1,7 @@
 module ReaderSpec where
 
-import           Reader
-import           Test.Hspec
+import Reader
+import Test.Hspec
 
 -- spec :: IO ()
 spec =

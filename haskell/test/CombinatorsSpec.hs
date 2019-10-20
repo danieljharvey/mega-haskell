@@ -1,8 +1,8 @@
 module CombinatorsSpec where
 
-import           Combinators
-import           Test.Hspec
-import           Test.QuickCheck
+import Combinators
+import Test.Hspec
+import Test.QuickCheck
 
 -- spec :: IO ()
 spec = do
