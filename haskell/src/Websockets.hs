@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Websockets where
 
@@ -7,11 +9,16 @@ import           Control.Exception  (finally)
 import           Control.Monad      (forM_, forever)
 import           Data.Char          (isPunctuation, isSpace)
 import           Data.Coerce
+import qualified Data.Map           as M
+import           Data.Maybe         (fromMaybe, listToMaybe)
 import           Data.Monoid        (mappend)
 import           Data.Text          (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.IO       as T
 
+import qualified Data.Aeson         as JSON
+
+import           GHC.Generics
 import qualified Network.WebSockets as WS
 
 type Client = (ClientName, WS.Connection)
@@ -22,10 +29,41 @@ newtype ClientName
 
 data ServerState =
   ServerState
-    { clients :: [Client] }
+    { clients :: [Client]
+    , events  :: M.Map Int Event
+    }
+
+newtype Event
+  = Event { getEvent :: Text }
+  deriving (Eq, Ord, Show)
+
+
+data BasicUser
+  = BasicUser
+      { firstName :: Text
+      , surname   :: Text
+      }
+    deriving (Eq, Ord, Show, Generic, JSON.FromJSON)
+
+
+
+nextKey :: M.Map Int Event -> Int
+nextKey
+  = (+1)
+  . (fromMaybe 0)
+  . listToMaybe
+  . reverse
+  . M.keys
+
+appendEvent :: Event -> ServerState -> ServerState
+appendEvent event serverState
+  = serverState { events = M.insert key event (events serverState) }
+  where
+    key
+      = nextKey (events serverState)
 
 newServerState :: ServerState
-newServerState = ServerState []
+newServerState = ServerState [] mempty
 
 numClients :: ServerState -> Int
 numClients = length . clients
@@ -35,11 +73,11 @@ clientExists client = any ((== fst client) . fst) . clients
 
 addClient :: Client -> ServerState -> ServerState
 addClient client serverState
-  = ServerState { clients = client : (clients serverState) }
+  = serverState { clients = client : (clients serverState) }
 
 removeClient :: Client -> ServerState -> ServerState
 removeClient client serverState
-  = ServerState
+  = serverState
       { clients = filter ((/= fst client) . fst) (clients serverState) }
 
 broadcast :: Text -> ServerState -> IO ()
@@ -89,5 +127,9 @@ application state pending = do
 talk :: Client -> MVar ServerState -> IO ()
 talk (user, conn) state = forever $ do
     msg <- WS.receiveData conn
+    modifyMVar_ state $ \s -> do
+      let newState = appendEvent (Event msg) s
+      print (events newState)
+      pure newState
     readMVar state >>= broadcast
         ((coerce user) `mappend` ": " `mappend` msg)
