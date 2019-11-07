@@ -3,23 +3,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Websockets where
 
-import           Control.Concurrent (MVar, modifyMVar, modifyMVar_, newMVar,
-                                     readMVar)
-import           Control.Exception  (finally)
-import           Control.Monad      (forM_, forever)
-import           Data.Char          (isPunctuation, isSpace)
+import           Control.Concurrent      (MVar, modifyMVar, modifyMVar_,
+                                          newMVar, readMVar)
+import           Control.Exception       (finally)
+import           Control.Monad           (forM_, forever)
+import qualified Data.Aeson              as JSON
+import           Data.Char               (isPunctuation, isSpace)
 import           Data.Coerce
-import qualified Data.Map           as M
-import           Data.Maybe         (fromMaybe, listToMaybe)
-import           Data.Monoid        (mappend)
-import           Data.Text          (Text)
-import qualified Data.Text          as T
-import qualified Data.Text.IO       as T
-
-import qualified Data.Aeson         as JSON
+import qualified Data.Map                as M
+import           Data.Maybe              (catMaybes, fromMaybe, listToMaybe)
+import           Data.Monoid             (mappend)
+import           Data.String.Conversions
+import           Data.Text               (Text)
+import qualified Data.Text               as T
+import qualified Data.Text.IO            as T
 
 import           GHC.Generics
-import qualified Network.WebSockets as WS
+import qualified Network.WebSockets      as WS
 
 type Client = (ClientName, WS.Connection)
 
@@ -45,7 +45,33 @@ data BasicUser
       }
     deriving (Eq, Ord, Show, Generic, JSON.FromJSON)
 
+-- just adds user to the list
+basicUserProjection :: Projection BasicUser [BasicUser]
+basicUserProjection =
+  Projection
+    { reducer      = (:)
+    , def          = mempty
+    }
 
+-- basic Projection
+-- maybe build in last event so we can use 'def' as state?
+data Projection dataType stateType
+  = Projection
+      { reducer :: (dataType -> stateType -> stateType)
+      , def     :: stateType
+      }
+
+-- run all events
+runProjection
+  :: (JSON.FromJSON dataType)
+  => M.Map Int Event
+  -> Projection dataType stateType
+  -> stateType
+runProjection events projection
+  = foldr (reducer projection) (def projection) (usefulEvents events)
+    where
+      usefulEvents
+        = catMaybes . (map (JSON.decode . convertString . getEvent)) . M.elems
 
 nextKey :: M.Map Int Event -> Int
 nextKey

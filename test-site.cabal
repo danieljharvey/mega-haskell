@@ -69,6 +69,7 @@ library
                   , semilattices
                   , generic-lens
                   , websockets
+                  , string-conversions
   default-language: Haskell2010
 
 test-suite unit-tests
