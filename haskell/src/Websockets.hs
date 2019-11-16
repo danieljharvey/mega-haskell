@@ -1,12 +1,14 @@
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
 module Websockets where
 
 import           Control.Concurrent      (MVar, modifyMVar, modifyMVar_,
                                           newMVar, readMVar)
 import           Control.Exception       (finally)
-import           Control.Monad           (forM_, forever)
+import           Control.Monad           (forM_, forever, when)
 import qualified Data.Aeson              as JSON
 import           Data.Char               (isPunctuation, isSpace)
 import           Data.Coerce
@@ -17,11 +19,13 @@ import           Data.String.Conversions
 import           Data.Text               (Text)
 import qualified Data.Text               as T
 import qualified Data.Text.IO            as T
-
+import           Data.Traversable
 import           GHC.Generics
 import qualified Network.WebSockets      as WS
 
 type Client = (ClientName, WS.Connection)
+
+type EventList = M.Map Int Event
 
 newtype ClientName
   = ClientName { getClientName :: Text }
@@ -30,7 +34,7 @@ newtype ClientName
 data ServerState =
   ServerState
     { clients :: [Client]
-    , events  :: M.Map Int Event
+    , events  :: EventList
     }
 
 newtype Event
@@ -45,12 +49,28 @@ data BasicUser
       }
     deriving (Eq, Ord, Show, Generic, JSON.FromJSON)
 
+type BasicUserProjection = StatefulProjection BasicUser [BasicUser]
+
 -- just adds user to the list
 basicUserProjection :: Projection BasicUser [BasicUser]
 basicUserProjection =
   Projection
     { reducer      = (:)
     , def          = mempty
+    , title        = "Basic user projection"
+    }
+
+type HorseCountProjection = StatefulProjection BasicUser Int
+
+horseCountProjection :: Projection BasicUser Int
+horseCountProjection =
+  Projection
+    { reducer = \user count
+        -> if (firstName user == "Horse" || surname user == "Horse")
+           then count + 1
+           else count
+    , def    = 0
+    , title  = "Horse count projection"
     }
 
 -- basic Projection
@@ -59,21 +79,77 @@ data Projection dataType stateType
   = Projection
       { reducer :: (dataType -> stateType -> stateType)
       , def     :: stateType
+      , title   :: Text
       }
+
+data StatefulProjection dataType stateType
+  = StatefulProjection
+      { projection :: Projection dataType stateType
+      , value      :: MVar (Int, stateType)
+      }
+
+createMVar :: Projection dataType stateType -> IO (StatefulProjection dataType stateType)
+createMVar projection = do
+    mvar <- newMVar (0, (def projection))
+    pure $
+      StatefulProjection
+        { projection = projection
+        , value      = mvar
+        }
+
+class RunProjection a where
+  run :: EventList -> a -> IO ()
+
+instance (JSON.FromJSON dataType, Eq stateType, Show stateType, RunProjection rest) => RunProjection (StatefulProjection dataType stateType, rest) where
+  run events ((StatefulProjection projection value), rest) = do
+    modifyMVar_ value (\(startKey, oldState) -> do
+      let (nextKey, newState) = runProjection events startKey oldState projection
+      when (newState /= oldState) $ print newState
+      pure (nextKey, newState))
+    run events rest
+
+instance RunProjection () where
+  run _ _ = pure ()
+
+projections :: IO (BasicUserProjection, (HorseCountProjection, ()))
+projections = do
+  basicUser <- createMVar basicUserProjection
+  horseCount <- createMVar horseCountProjection
+  pure (basicUser, (horseCount, ()))
 
 -- run all events
 runProjection
   :: (JSON.FromJSON dataType)
-  => M.Map Int Event
-  -> Projection dataType stateType
+  => EventList
+  -> Int
   -> stateType
-runProjection events projection
-  = foldr (reducer projection) (def projection) (usefulEvents events)
+  -> Projection dataType stateType
+  -> (Int, stateType)
+runProjection events startKey oldState projection
+  = ((nextKey events), newState)
     where
-      usefulEvents
-        = catMaybes . (map (JSON.decode . convertString . getEvent)) . M.elems
+      newState
+        = foldr (reducer projection) oldState (usefulEvents events)
 
-nextKey :: M.Map Int Event -> Int
+      filterOldEvents
+        = M.filterWithKey (\k _ -> k >= startKey)
+
+      usefulEvents
+        = catMaybes
+        . (map (JSON.decode . convertString . getEvent))
+        . M.elems
+        . filterOldEvents
+
+runProjectionAndPrint
+  :: (JSON.FromJSON dataType, Show stateType)
+  => EventList
+  -> Projection dataType stateType
+  -> IO ()
+runProjectionAndPrint events projection = do
+  print $ (title projection) <> ":: "
+  print $ (runProjection events 1 (def projection)) projection
+
+nextKey :: EventList -> Int
 nextKey
   = (+1)
   . (fromMaybe 0)
@@ -151,11 +227,14 @@ application state pending = do
                broadcast ((coerce . fst) client <> " disconnected") s
 
 talk :: Client -> MVar ServerState -> IO ()
-talk (user, conn) state = forever $ do
+talk (user, conn) state = do
+  projections' <- projections
+  forever $ do
     msg <- WS.receiveData conn
     modifyMVar_ state $ \s -> do
       let newState = appendEvent (Event msg) s
-      print (events newState)
+      -- print (events newState)
+      run (events newState) projections'
       pure newState
     readMVar state >>= broadcast
         ((coerce user) `mappend` ": " `mappend` msg)
