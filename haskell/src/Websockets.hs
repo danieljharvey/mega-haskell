@@ -5,23 +5,25 @@
 {-# LANGUAGE RankNTypes        #-}
 module Websockets where
 
-import           Control.Concurrent      (MVar, modifyMVar, modifyMVar_,
-                                          newMVar, readMVar)
-import           Control.Exception       (finally)
-import           Control.Monad           (forM_, forever, when)
-import qualified Data.Aeson              as JSON
-import           Data.Char               (isPunctuation, isSpace)
+import           Control.Concurrent             (MVar, forkIO, modifyMVar,
+                                                 modifyMVar_, newMVar, readMVar)
+import qualified Control.Concurrent.Async.Timer as Timer
+import           Control.Exception              (finally)
+import           Control.Monad                  (forM_, forever, when)
+import qualified Data.Aeson                     as JSON
+import           Data.Char                      (isPunctuation, isSpace)
 import           Data.Coerce
-import qualified Data.Map                as M
-import           Data.Maybe              (catMaybes, fromMaybe, listToMaybe)
-import           Data.Monoid             (mappend)
+import qualified Data.Map                       as M
+import           Data.Maybe                     (catMaybes, fromMaybe,
+                                                 listToMaybe)
+import           Data.Monoid                    (mappend)
 import           Data.String.Conversions
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import qualified Data.Text.IO            as T
+import           Data.Text                      (Text)
+import qualified Data.Text                      as T
+import qualified Data.Text.IO                   as T
 import           Data.Traversable
 import           GHC.Generics
-import qualified Network.WebSockets      as WS
+import qualified Network.WebSockets             as WS
 
 type Client = (ClientName, WS.Connection)
 
@@ -41,6 +43,36 @@ newtype Event
   = Event { getEvent :: Text }
   deriving (Eq, Ord, Show)
 
+data Channel a
+  = Channel { channelName :: Text
+            , go          :: (ServerState -> Text -> IO ()) -> MVar ServerState -> IO ()
+            }
+
+data Tick
+  = Tick
+  deriving (Eq, Ord, Show, Generic, JSON.ToJSON)
+
+tickChannel :: Channel Tick
+tickChannel
+  = Channel
+      { channelName = "TickChannel"
+      , go = \broadcast' stateVar -> do
+          let conf = (Timer.setInitDelay 500) . (Timer.setInterval 1000) $ Timer.defaultConf
+          Timer.withAsyncTimer conf $ \ timer -> do
+            forever $ do
+              Timer.wait timer
+              readMVar stateVar >>= flip broadcast' "Tick"
+              pure ()
+      }
+
+runChannel
+  :: (ServerState -> Text -> IO ())
+  -> MVar ServerState
+  -> Channel a
+  -> IO ()
+runChannel broadcast' stateVar (Channel name go) = do
+  print $ "Starting channel " <> name
+  go broadcast' stateVar
 
 data BasicUser
   = BasicUser
@@ -182,14 +214,15 @@ removeClient client serverState
   = serverState
       { clients = filter ((/= fst client) . fst) (clients serverState) }
 
-broadcast :: Text -> ServerState -> IO ()
-broadcast message serverState = do
+broadcast :: ServerState -> Text -> IO ()
+broadcast serverState message = do
     T.putStrLn message
     forM_ (clients serverState) $ \(_, conn) -> WS.sendTextData conn message
 
 main :: IO ()
 main = do
     state <- newMVar newServerState
+    tickThread <- forkIO $ runChannel broadcast state tickChannel
     WS.runServer "127.0.0.1" 9160 $ application state
 
 application :: MVar ServerState -> WS.ServerApp
@@ -214,7 +247,7 @@ application state pending = do
                    WS.sendTextData conn $
                        "Welcome! Users: " <>
                        T.intercalate ", " (map (coerce . fst) (clients s))
-                   broadcast ((coerce . fst) client <> " joined") s'
+                   broadcast s' ((coerce . fst) client <> " joined")
                    return s'
                 talk client state
          where
@@ -224,11 +257,12 @@ application state pending = do
                -- Remove client and return new state
                s <- modifyMVar state $ \s ->
                    let s' = removeClient client s in return (s', s')
-               broadcast ((coerce . fst) client <> " disconnected") s
+               broadcast s ((coerce . fst) client <> " disconnected")
 
 talk :: Client -> MVar ServerState -> IO ()
 talk (user, conn) state = do
   projections' <- projections
+
   forever $ do
     msg <- WS.receiveData conn
     modifyMVar_ state $ \s -> do
@@ -236,5 +270,5 @@ talk (user, conn) state = do
       -- print (events newState)
       run (events newState) projections'
       pure newState
-    readMVar state >>= broadcast
-        ((coerce user) `mappend` ": " `mappend` msg)
+    readMVar state >>= (\s' -> broadcast s'
+        ((coerce user) `mappend` ": " `mappend` msg))
