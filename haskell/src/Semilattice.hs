@@ -10,6 +10,7 @@ import Data.Semilattice.Join
 import Data.Semilattice.Lower
 import Data.Semilattice.Upper
 import qualified Data.Set as Data.Set
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import GHC.TypeLits (Symbol)
 
 data Colour
@@ -31,27 +32,6 @@ instance Bounded Colour where
 instance Join Colour where
   a \/ b = if a < b then b else a
 
--- They are idempotent -- the thing with itself == itself
-a = Black \/ Black
-
--- a == Black
-
--- They are commutative - which means the order doesn't change the result
-b = DarkGrey \/ Black
-
--- b == DarkGrey
-c = Black \/ DarkGrey
-
--- c == DarkGrey
-
--- They are associative - so grouping them shouldn't change the result
-d = DarkGrey \/ (Grey \/ LightGrey)
-
--- d == LightGrey
-e = (DarkGrey \/ Grey) \/ LightGrey
-
--- e == LightGrey
-
 -- If they are Lower bounded, then any X combined with the lower == X
 f = LightGrey \/ Black
 
@@ -66,35 +46,49 @@ g = LightGrey \/ White
 
 data ActionType a
   = NoOp
-  | Update a
+  | OnChange a
+  | OnBlur
+  | OnClick
+  | OnFocus
   deriving (Eq, Show)
+
+newtype Timestamp
+  = Timestamp {getTimestamp :: Integer}
 
 data Action a
   = Action
       { actionType :: ActionType a,
-        index :: Int
+        timestamp :: Integer
       }
   deriving (Eq, Show)
 
 instance Lower (Action a) where
   lowerBound = Action NoOp 0
 
+-- the events are ordered by the timestamp
 instance (Eq a) => Ord (Action a) where
-  a <= b = index a <= index b
+  a <= b = timestamp a <= timestamp b
 
 type ActionList a = Data.Set.Set (Action a)
 
-action1 = Data.Set.singleton (Action NoOp 1)
+action1 = createAction 1 NoOp
 
-action2 = updateAction 2 "dog"
+action2 = createAction 2 (OnChange "dog")
 
-action3 = updateAction 3 "log"
+action3 = createAction 3 (OnChange "log")
 
-action4 = updateAction 4 "bog"
+action4 = createAction 4 (OnChange "bog")
 
-updateAction :: Int -> a -> ActionList a
-updateAction i a =
-  Data.Set.singleton (Action (Update a) i)
+getCurrentTimestamp :: IO Integer
+getCurrentTimestamp = (round . (* 1000)) <$> getPOSIXTime
+
+createIOAction :: ActionType a -> IO (ActionList a)
+createIOAction a = do
+  timestamp <- getCurrentTimestamp
+  pure $ Data.Set.singleton (Action a timestamp)
+
+createAction :: Integer -> ActionType a -> ActionList a
+createAction timestamp a = Data.Set.singleton (Action a timestamp)
 
 a' :: ActionList String
 a' = action1 \/ action2
@@ -106,7 +100,7 @@ c' = a' == b'
 
 foldAction :: ActionType a -> a -> a
 foldAction NoOp a = a
-foldAction (Update a) _ = a
+foldAction (OnChange a) _ = a
 
 runActionList :: a -> ActionList a -> a
 runActionList initial items =
