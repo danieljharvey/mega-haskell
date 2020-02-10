@@ -177,3 +177,4 @@ test-suite unit-tests
                 , functor-combinators
                 , semilattices
                 , generic-lens
+                , generic-arbitrary
