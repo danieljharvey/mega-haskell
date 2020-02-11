@@ -57,13 +57,11 @@ instance Arbitrary APIResponse where
 getResponses :: (Arbitrary a) => Proxy a -> IO [a]
 getResponses _ = generate $ vector 100
 
--- this will turn a pile of responses into a pile of JSON responses
-jsonifyList :: (ToJSON a) => [a] -> [BS.ByteString]
-jsonifyList = fmap encode
-
 -- create our responses, turn them to JSON, add numbers for file naming
 listToJSON :: (ToJSON a) => [a] -> [(Int, BS.ByteString)]
 listToJSON = (indexList . jsonifyList)
+  where
+    jsonifyList = fmap encode
 
 -- combine these functions
 -- because we never use the `a` directly, we need to use TypeApplications to
@@ -74,14 +72,6 @@ responsesToJSON ::
   IO [(Int, BS.ByteString)]
 responsesToJSON arbType = listToJSON <$> (getResponses arbType)
 
--- save a json file using the path, number and JSON bytestring
-saveFile ::
-  String ->
-  (Int, BS.ByteString) ->
-  IO ()
-saveFile path (index, json) =
-  BS.writeFile (createPath path index) json
-
 -- generate 100 APIResponse values and save them in the srcPath folder
 contractWrite ::
   (ToJSON a, Arbitrary a) =>
@@ -89,7 +79,9 @@ contractWrite ::
   String ->
   IO ()
 contractWrite arbType srcPath = do
-  responses <- responsesToJSON arbType
+  let saveFile = \path (index, json) ->
+        BS.writeFile (createPath path index) json
+  responses <- listToJSON <$> (getResponses arbType)
   mapM_ (saveFile srcPath) responses
 
 -- example of using the Proxy to pass our APIResponse type to contractWrite
