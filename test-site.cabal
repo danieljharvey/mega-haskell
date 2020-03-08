@@ -46,6 +46,7 @@ library
                   , Websockets
                   , Parsing
                   , ContractTests
+                  , Screen
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
@@ -76,6 +77,10 @@ library
                   , string-conversions
                   , async-timer
                   , megaparsec
+                  , warp
+                  , wai
+                  , wai-cors
+                  , http-types
   default-language: Haskell2010
 
 test-suite unit-tests
@@ -152,6 +157,7 @@ test-suite unit-tests
                   , TypelevelSpec
                   , Viewfunctor
                   , ContractTests
+                  , Screen
   build-depends: base
                 , mtl
                 , aeson
