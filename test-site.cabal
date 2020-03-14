@@ -157,7 +157,6 @@ test-suite unit-tests
                   , TypelevelSpec
                   , Viewfunctor
                   , ContractTests
-                  , Screen
   build-depends: base
                 , mtl
                 , aeson
