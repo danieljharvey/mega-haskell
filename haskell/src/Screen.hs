@@ -10,7 +10,7 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BS
 import Data.Function ((&))
 import qualified Data.Text as T
-import Data.Text.Encoding (encodeUtf8)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import GHC.Generics
 import qualified Network.HTTP.Types as HTTP
 import qualified Network.Wai as Wai
@@ -19,25 +19,51 @@ import Network.Wai.Middleware.Cors
 
 -- a screen takes some props and returns some html which does shit
 
-data HTML
-  = Div [HTML]
+type StateType = Int
+
+data HTML a
+  = Div [T.Text] [HTML a]
   | StringLit T.Text
-  | Button T.Text
+  | Button a T.Text
 
-renderHTML :: HTML -> T.Text
-renderHTML (Div items) =
-  "<div>" <> inner <> "</div>"
+renderHTML :: (JSON.ToJSON a) => State a -> HTML a -> T.Text
+renderHTML st (Div classNames items) =
+  "<div class='" <> T.intercalate "" classNames <> "'>" <> inner <> "</div>"
   where
-    inner = T.concat $ renderHTML <$> items
-renderHTML (StringLit s) = s
-renderHTML (Button title) = "<button>" <> title <> "</button>"
+    inner = T.concat $ renderHTML st <$> items
+renderHTML _ (StringLit s) = s
+renderHTML st (Button newState title) =
+  "<button onclick={"
+    <> eventJS st newState
+    <> "}>"
+    <> title
+    <> "</button>"
 
-drawScreen :: Int -> HTML
-drawScreen i =
-  Div
-    [ Div [Button "-", Button "+"],
-      StringLit (T.pack $ show i)
-    ]
+-- what should we run to do the update
+eventJS :: (JSON.ToJSON a) => State a -> a -> T.Text
+eventJS oldState i = "updateScreen(" <> json <> ")"
+  where
+    newState =
+      oldState {info = i}
+    json =
+      byteStringToText $ JSON.encode newState
+
+drawScreen :: ScreenDrawer StateType
+drawScreen =
+  ScreenDrawer
+    ( \i ->
+        Div
+          ["main"]
+          [ Div [] [Button (i - 1) "-", Button (i + 1) "+"],
+            StringLit (T.pack $ show i)
+          ]
+    )
+
+newtype ScreenDrawer s
+  = ScreenDrawer {getScreenDrawer :: s -> HTML s}
+
+byteStringToText :: BS.ByteString -> T.Text
+byteStringToText = decodeUtf8 . BS.toStrict
 
 textToByteString :: T.Text -> BS.ByteString
 textToByteString = BS.fromStrict . encodeUtf8
@@ -103,7 +129,7 @@ handlePostRequest jsonStr = do
             JSON.encode
               ( Output
                   { html =
-                      renderHTML (drawScreen (info a)),
+                      renderHTML a (getScreenDrawer drawScreen (info a)),
                     js = ""
                   }
               )
@@ -130,6 +156,6 @@ makeSettings config =
 {-
 
 function update(state, url) {
-
+  fetch(
 }
 -}

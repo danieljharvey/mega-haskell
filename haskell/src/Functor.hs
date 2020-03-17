@@ -79,7 +79,7 @@ data Poohoops a = Yerp a | Nerp deriving (Eq, Show)
 
 instance Functor Poohoops where
   fmap _ Nerp = Nerp
-  fmap f (Yerp a) = Nerp
+  fmap _ (Yerp _) = Nerp
 
 identityLaw2 :: Poohoops String -> Bool
 identityLaw2 j = j == fmap id j

@@ -2,7 +2,6 @@
 
 module Parsing where
 
-import Control.Applicative (Alternative)
 import qualified Data.Map as M
 import Data.Text
 import Data.Void

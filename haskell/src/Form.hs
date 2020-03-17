@@ -2,8 +2,6 @@
 
 module Form where
 
-import Data.Semigroup
-
 data UI action
   = Empty
   | Container [UI action]
@@ -47,7 +45,7 @@ counterValidate st =
   weight st > 40 && weight st < 100
 
 counterRender :: CounterState -> UI CounterAction
-counterRender st =
+counterRender _ =
   Container [Item "down" Decrease, Item "up" Increase]
 
 form :: Form CounterState CounterAction
@@ -57,10 +55,13 @@ form = Form
     validate = counterValidate
   }
 
+testCol :: UI CounterAction
 testCol = Container [Item "down" Decrease, Item "up" Increase]
 
+testEmpty :: UI CounterAction
 testEmpty = Empty
 
+testButton :: UI CounterAction
 testButton = Item "Bum" Decrease
 
 type UI2 = String
@@ -69,8 +70,8 @@ newtype Form2 i a
   = Form2 {getForm2 :: i -> FormReturn2 i a}
 
 instance Functor (Form2 i) where
-  fmap f form =
-    Form2 (\i -> f <$> ((getForm2 form) i))
+  fmap f form' =
+    Form2 (\i -> f <$> ((getForm2 form') i))
 
 data FormReturn2 i a
   = FormReturn2
@@ -79,5 +80,5 @@ data FormReturn2 i a
       }
 
 instance Functor (FormReturn2 i) where
-  fmap f (FormReturn2 render2 result2) =
-    FormReturn2 {render2 = render2, result2 = (f <$> result2)}
+  fmap f (FormReturn2 render2' result2') =
+    FormReturn2 {render2 = render2', result2 = (f <$> result2')}

@@ -1,13 +1,18 @@
 module Traversal where
 
-import Data.Maybe
 import Data.Monoid
 import Data.Validation
 
-data MyTree a = Leaf a | Branch (MyTree a) (MyTree a) deriving (Show, Eq)
+data MyTree a
+  = Leaf a
+  | Branch (MyTree a) (MyTree a)
+  deriving (Show, Eq)
 
 sampleTree :: MyTree Int
-sampleTree = Branch (Branch (Leaf 2) (Leaf 3)) (Branch (Leaf 5) (Leaf 2))
+sampleTree =
+  Branch
+    (Branch (Leaf 2) (Leaf 3))
+    (Branch (Leaf 5) (Leaf 2))
 
 instance Foldable MyTree where
   foldMap f (Branch l r) = (foldMap f l) <> (foldMap f r)
@@ -19,7 +24,13 @@ sampleTreeTotal = getSum $ foldMap Sum sampleTree
 -- sampleTreeTotal == 12
 
 maybeTree :: MyTree (Maybe Int)
-maybeTree = Branch (Branch (Leaf $ Just 2) (Leaf $ Just 3)) (Branch (Leaf $ Just 5) (Leaf $ Just 2))
+maybeTree =
+  Branch
+    ( Branch
+        (Leaf $ Just 2)
+        (Leaf $ Just 3)
+    )
+    (Branch (Leaf $ Just 5) (Leaf $ Just 2))
 
 maybeAdd :: Maybe Int -> Maybe Int -> Maybe Int
 maybeAdd (Just a) (Just b) = Just (a + b)

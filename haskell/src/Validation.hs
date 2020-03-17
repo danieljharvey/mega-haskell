@@ -1,7 +1,6 @@
 module Validation where
 
 import Data.List
-import Data.Semigroup
 import Data.Validation
 
 data Failures = TooLong | TooShort | ContainsEgg deriving (Show)
@@ -29,8 +28,11 @@ containsEgg =
           else Nothing
     )
 
+doesItContainEgg :: Validation [Failures] String
 doesItContainEgg = containsEgg "eggeggeggegg"
 
+bothTests :: String -> Validation [Failures] String
 bothTests a = containsEgg a <> checkTooLong a
 
+twofails :: Validation [Failures] String
 twofails = checkTooLong "dogsdsdfsdfsdfsdf" <> containsEgg "egg"

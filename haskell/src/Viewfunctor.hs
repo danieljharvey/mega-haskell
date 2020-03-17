@@ -11,7 +11,6 @@
 
 module Viewfunctor where
 
-import Control.Applicative
 import Control.Applicative.ListF
 import Data.Functor.Product
 import Data.Functor.Sum
@@ -72,7 +71,7 @@ class (Functor f) => MaybeRender (f :: Type -> Type) (s :: Type) where
   maybeRender :: Proxy f -> s -> Maybe JSX
 
 instance {-# OVERLAPPABLE #-} (Functor f, Render f s) => MaybeRender f s where
-  maybeRender f s = Just $ render (Proxy :: Proxy f) s
+  maybeRender _ s = Just $ render (Proxy :: Proxy f) s
 
 instance MaybeRender LoggedIn State where
   maybeRender _ s =
@@ -109,6 +108,8 @@ instance (Render a s, Render b s) => Render (Product a b) s where
   render _ s =
     render (Proxy :: Proxy a) s <> render (Proxy :: Proxy b) s
 
+poo :: JSX
 poo = render (Proxy :: Proxy Website) State {name = "Mr Horse", age = 100, loggedIn = False}
 
+poo2 :: JSX
 poo2 = render (Proxy :: Proxy Website) State {name = "Mrs Horse", age = 100, loggedIn = True}

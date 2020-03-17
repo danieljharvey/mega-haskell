@@ -13,9 +13,7 @@ module Static where
 
 import Control.Applicative
 import Data.Maybe
-import Data.Time
 import GHC.TypeLits
-import Text.Read
 
 -- API specification DSL
 data Get (a :: *)
@@ -73,7 +71,8 @@ handleHome :: IO Page
 handleHome = pure (Page "it is the home page")
 
 handleBlog :: BlogId -> IO Page
-handleBlog (BlogId id) = pure (Page $ "It is blog number " <> show id)
+handleBlog (BlogId id') =
+  pure (Page $ "It is blog number " <> show id')
 
 handleNewsPage :: IO Page
 handleNewsPage = pure (Page "news")

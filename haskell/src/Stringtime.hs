@@ -12,7 +12,6 @@ module Stringtime where
 import Data.Hashable
 import Data.Kind
 import Data.Map.Lazy
-import Data.Monoid ((<>))
 import Data.Text (Text, concat, intercalate, pack)
 import Prelude hiding (concat, foldr)
 
@@ -75,7 +74,7 @@ instance
   (Ord a, Ord (HList as)) =>
   Ord (HList (a ': as))
   where
-  (HCons x xs) <= (HCons y ys) =
+  (HCons x _) <= (HCons y _) =
     x <= y
 
 --
@@ -122,21 +121,21 @@ hashCSS css = pack $ "cart" ++ show (hash (concat css))
 type StyleMap props = Map props Text
 
 propsToClass :: (a -> CSS) -> a -> Classname
-propsToClass render a = hashCSS (render a)
+propsToClass render' a = hashCSS (render' a)
 
 createStylesheet ::
   (Ord (HList as), CartesianStyles as) =>
   (HList as -> CSS) ->
   [Text]
-createStylesheet render =
+createStylesheet render' =
   elems $ fromList pairs
   where
     pairs =
       fmap (\p -> (className p, output p)) cartesian
     className p =
-      hashCSS (render p)
+      hashCSS (render' p)
     output p =
-      renderCSS (render p)
+      renderCSS (render' p)
 
 -- concrete types for one component
 

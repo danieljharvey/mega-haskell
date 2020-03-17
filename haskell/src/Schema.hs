@@ -26,7 +26,6 @@ import qualified Data.Aeson as JSON
 import Data.ByteString.Lazy
 import Data.Kind (Type)
 import qualified Data.Text as Text
-import Data.Void (Void)
 import GHC.Generics
 import GHC.Natural
 import GHC.TypeLits

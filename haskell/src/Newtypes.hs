@@ -36,7 +36,7 @@ instance (Show a) => Pettable (Cat a) where
   Hand <>|<> (Cat a) = show a ++ " miaows or similar"
 
 calculateSalaryBad :: Int -> Int
-calculateSalaryBad months = months * 1000
+calculateSalaryBad months' = months' * 1000
 
 calculateSalaryBetter :: (Num a, Show a, Ord a) => a -> Maybe a
 calculateSalaryBetter i =
@@ -58,7 +58,7 @@ months :: (Num a, Ord a) => a -> PositiveNum a
 months i = fromMaybe zero (makePositiveNum i)
 
 calculateSalary :: (Num a) => PositiveNum a -> a
-calculateSalary months = 1000 * (getPositiveNum months)
+calculateSalary months' = 1000 * (getPositiveNum months')
 
 instance Functor PositiveNum where
   fmap f (PositiveNum i) = PositiveNum (f i)

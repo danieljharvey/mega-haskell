@@ -1,7 +1,7 @@
 module Reader where
 
 import Data.Semigroup
-import Prelude hiding (Reader, ask)
+import Prelude
 
 newtype Reader r a
   = Reader {runReader :: r -> a}

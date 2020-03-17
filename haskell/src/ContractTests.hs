@@ -79,8 +79,8 @@ contractWrite ::
   String ->
   IO ()
 contractWrite arbType srcPath = do
-  let saveFile = \path (index, json) ->
-        BS.writeFile (createPath path index) json
+  let saveFile = \path (index, jsonStr) ->
+        BS.writeFile (createPath path index) jsonStr
   responses <- listToJSON <$> (getResponses arbType)
   mapM_ (saveFile srcPath) responses
 

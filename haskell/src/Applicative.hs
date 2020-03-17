@@ -1,7 +1,6 @@
 module Applicative where
 
-import Data.List (concat, intersperse)
-import Data.Monoid ((<>))
+import Data.List (intersperse)
 
 moreList :: Integer -> [Integer]
 moreList a = [a -1, a, a + 1]

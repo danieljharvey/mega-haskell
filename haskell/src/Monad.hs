@@ -3,7 +3,6 @@ module Monad where
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 import Data.List
-import Data.Semigroup ((<>))
 
 -- simple definition
 
@@ -143,19 +142,19 @@ data Config
 
 printName :: Reader Config String
 printName = do
-  config <- ask
-  pure ("the name is " <> name config)
+  cfg <- ask
+  pure ("the name is " <> name cfg)
 
 printIp :: Reader Config String
 printIp = do
-  config <- ask
-  pure ("The ip address is " <> ipAddress config)
+  cfg <- ask
+  pure ("The ip address is " <> ipAddress cfg)
 
 configReader :: Reader Config String
 configReader = do
   ip <- printIp
-  name <- printName
-  pure (ip <> ", " <> name)
+  name' <- printName
+  pure (ip <> ", " <> name')
 
 config :: Config
 config = Config {ipAddress = "127.0.0.1", name = "localhost"}
@@ -190,6 +189,6 @@ maths i = do
 things :: IO String
 things = do
   _ <- putStrLn "Hello! What is your name?"
-  name <- readLn
-  putStrLn ("Hello, " ++ name)
-  pure name
+  name' <- readLn
+  putStrLn ("Hello, " ++ name')
+  pure name'

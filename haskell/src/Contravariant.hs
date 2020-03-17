@@ -21,7 +21,7 @@ instance Contravariant Preddy where
 
 nameLength :: String -> Int
 nameLength "" = 0
-nameLength (x : xs) = 1 + nameLength xs
+nameLength (_ : xs) = 1 + nameLength xs
 
 nameLengthOverThree :: Preddy String
 nameLengthOverThree = contramap nameLength overThree

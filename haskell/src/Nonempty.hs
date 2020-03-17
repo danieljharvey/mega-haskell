@@ -1,7 +1,5 @@
 module Nonempty where
 
-import Data.Semigroup
-
 -- non empty list
 
 data NonEmpty a = NonEmpty a [a] deriving (Show, Eq)

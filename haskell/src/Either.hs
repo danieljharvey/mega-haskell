@@ -27,7 +27,7 @@ instance Applicative (Either a) where
   pure a = Right a
 
   (Right f) <*> (Right a) = Right (f a)
-  (Right f) <*> (Left a) = Left a
+  (Right _) <*> (Left a) = Left a
   (Left a) <*> _ = Left a
 
 -- if we get two wrapped eithers, make it into one
@@ -39,9 +39,9 @@ instance Monad (Either a) where
 -- concatenation of things - the things must themselves be combinable
 instance (Semigroup a) => Semigroup (Either e a) where
   (Right a) <> (Right b) = Right (a <> b)
-  (Left a) <> (Left b) = Left a
-  (Left a) <> b = b
-  a <> (Left b) = a
+  (Left a) <> (Left _) = Left a
+  (Left _) <> b = b
+  a <> (Left _) = a
 
 {- BORKED
 instance (Semigroup a, Monoid e) => Monoid (Either e a) where
@@ -50,7 +50,7 @@ instance (Semigroup a, Monoid e) => Monoid (Either e a) where
 
 -- think of this as combining a list that may have one or zero items
 instance Foldable (Either e) where
-  foldr _ a (Left e) = a
+  foldr _ a (Left _) = a
   foldr f a (Right b) = f b a
 
 {- BORKED

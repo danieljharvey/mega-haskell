@@ -7,10 +7,6 @@
 
 module Typelevel where
 
-import qualified Data.Aeson as JSON
-import qualified Data.Aeson.Types as JSON
-import qualified Data.Vector as V
-
 newtype NiceString
   = NiceString {getNice :: String}
 
@@ -33,23 +29,23 @@ data Vector (m :: Nat) (a :: *) where
 
 instance Show a => Show (Vector n a) where
   show VNil = "VNil"
-  show (VCons a as) = "VCons " ++ show a ++ " (" ++ show as ++ ")"
+  show (VCons a' as) = "VCons " ++ show a' ++ " (" ++ show as ++ ")"
 
 instance Functor (Vector n) where
   fmap _ VNil = VNil
-  fmap f (VCons a as) = VCons (f a) (fmap f as)
+  fmap f (VCons a' as) = VCons (f a') (fmap f as)
 
-vectyBoy :: Vector (Succ (Succ (Succ (Succ Zero)))) Int
+vectyBoy :: Vector ('Succ ('Succ ('Succ ('Succ 'Zero)))) Int
 vectyBoy = VCons 1 (VCons 2 (VCons 3 (VCons 4 VNil)))
 
-emptyBoy :: Vector Zero Int
+emptyBoy :: Vector 'Zero Int
 emptyBoy = VNil
 
 -- look at this unreasonable type signature
-longBoy :: Vector (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) Int
+longBoy :: Vector ('Succ ('Succ ('Succ ('Succ ('Succ ('Succ ('Succ ('Succ 'Zero)))))))) Int
 longBoy = vAppend vectyBoy vectyBoy
 
-mappedBoy :: Vector (Succ (Succ (Succ (Succ Zero)))) Int
+mappedBoy :: Vector ('Succ ('Succ ('Succ ('Succ 'Zero)))) Int
 mappedBoy = (* 10) <$> vectyBoy
 
 -- VCons 10 (VCons 20 (VCons 30 (VCons 40 (VNil))))
@@ -60,13 +56,14 @@ mappedBoy = (* 10) <$> vectyBoy
 -- as VCons takes care of incrementing them
 vAppend :: Vector n a -> Vector m a -> Vector (n + m) a
 vAppend VNil x = x
-vAppend (VCons a rest) as = vAppend rest (VCons a as)
+vAppend (VCons a' rest) as = vAppend rest (VCons a' as)
 
 -- we can guarantee a value from the head function
 -- because it specifically uses Succ in the type signature
-vHead :: Vector (Succ n) a -> a
-vHead (VCons a _) = a
+vHead :: Vector ('Succ n) a -> a
+vHead (VCons a' _) = a'
 
+a :: Int
 a = vHead vectyBoy
 
 -- a == 1
@@ -77,5 +74,5 @@ a = vHead vectyBoy
 --        Actual type: Vector 'Zero Inti
 
 type family (m :: Nat) - (n :: Nat) :: Nat where
-  m - Zero = m
-  Succ m - Succ n = m - n
+  m - 'Zero = m
+  'Succ m - 'Succ n = m - n

@@ -1,11 +1,12 @@
 module TotalEclipse where
 
 head :: [a] -> a
-head (x : xs) = x
+head (x : _) = x
+head [] = undefined
 
 safeHead :: [a] -> Maybe a
 safeHead [] = Nothing
-safeHead (x : xs) = Just x
+safeHead (x : _) = Just x
 
 data NonEmpty a = NonEmpty a [a]
 

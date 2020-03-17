@@ -1,7 +1,5 @@
 module Semigroup where
 
-import Data.Semigroup
-
 -- lists
 
 firstList :: [Int]

@@ -10,8 +10,6 @@
 module Redux where
 
 import Data.Data
-import Data.Kind
-import Data.Typeable
 
 -- we're going to have a bunch of different sum types
 -- and want to listen to some and ignore others
@@ -70,9 +68,11 @@ showIfMatches mystery =
     else Nothing
 
 -- Just "Logout"
+b :: Maybe String
 b = showIfMatches @Login Logout
 
 -- Nothing
+c :: Maybe String
 c = showIfMatches @Login Down
 
 processIfMatching ::
@@ -114,7 +114,9 @@ defaultState =
       value = 0
     }
 
+d :: State
 d = processIfMatching loginReducer (StartLogin "paul" "imissbarry") defaultState
 
+e :: State
 e = processIfMatching countReducer Up defaultState
 -- how do I express the big list of reducers

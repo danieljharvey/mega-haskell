@@ -64,7 +64,7 @@ class IsGoodBoy a where
   isGoodBoy :: a -> Bool
 
 instance IsGoodBoy PetWrapper where
-  isGoodBoy a = (coerce a == Dog)
+  isGoodBoy a' = (coerce a' == Dog)
 
 -- how do we know they are the same thing?
 changeTo :: Pet -> PetWrapper
@@ -85,7 +85,7 @@ data Wrapper a
   deriving stock (Show, Foldable, Functor, Traversable)
 
 f :: Wrapper String
-f = show <$> TwoThings (10, 100)
+f = show <$> TwoThings ((10 :: Integer), (100 :: Integer))
 
 -- f == TwoThings ("10", "100")
 

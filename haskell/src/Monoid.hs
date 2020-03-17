@@ -1,11 +1,10 @@
 module Monoid where
 
-import Data.Semigroup
-
 -- List bits
 
 combineList :: [[a]] -> [a]
 combineList (a : as) = a ++ (combineList as)
+combineList [] = []
 
 great :: [Int]
 great = combineList1 [[1, 2, 3], [4, 5, 6]]

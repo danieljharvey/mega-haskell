@@ -3,7 +3,6 @@ module Comonad where
 
 import           Control.Comonad
 import           Control.Comonad.Store
-import           Data.List             (isInfixOf)
 import           Data.Monoid
 
 data Which = This | That | Who deriving (Show, Eq)
@@ -16,6 +15,7 @@ getStuff Who  = "who the fuck?"
 stuffStore :: Store Which String
 stuffStore = store getStuff This
 
+  {-
 (f,a) = runStore stuffStore
 
 output :: String
@@ -23,6 +23,7 @@ output = f a
 
 other :: String
 other = f That
+-}
 
 currentPosition :: Which
 currentPosition = pos stuffStore
@@ -54,11 +55,15 @@ thisOrThat Who = Nothing
 thisOrThat w   = Just w
 
 -- experiment is 'functor map over key to get fuc
+what :: Maybe String
 what = experiment thisOrThat stuffStore
 
+otherWhat :: Maybe String
 otherWhat = experiment thisOrThat $ seeks invert stuffStore
 
-otherOtherWhat = experiment thisOrThat $ seeks invert $ seeks invert stuffStore
+otherOtherWhat :: Maybe String
+otherOtherWhat = experiment thisOrThat
+    $ seeks invert $ seeks invert stuffStore
 
 {-
  oh my god what are we even doing, this seems so much work,
@@ -92,8 +97,8 @@ gridHeight grid
   = length grid
 
 gridWidth :: Grid -> Int
-gridWidth []     = 0
-gridWidth (a:as) = length a
+gridWidth []    = 0
+gridWidth (a:_) = length a
 
 type Point = (Int, Int)
 
@@ -124,7 +129,7 @@ firstItem = extract startStore
 
 -- adds up all of the items around our item
 nextStep :: Store Point Bool -> Int
-nextStep store
+nextStep store'
   = foldr (+) 0 [ look (-1) (-1) , look 0 (-1) , look 1 (-1)
                 , look (-1) 0    , look 0 0    , look 1 0
                 , look (-1) 1    , look 0 1    , look 1 1
@@ -132,7 +137,7 @@ nextStep store
     where
       look :: Int -> Int -> Int
       look x y
-        = if peeks (\(a,b) -> (x + a, y + b)) store
+        = if peeks (\(a,b) -> (x + a, y + b)) store'
           then 1
           else 0
 
@@ -153,8 +158,8 @@ fourthItem = peek (0,0) endStore
 -- fourthItem == 2
 
 countMines :: Store Point Bool -> Point -> Int
-countMines store point
-  = peek point (extend nextStep store)
+countMines store' point
+  = peek point (extend nextStep store')
 
 {-
 class Functor w => Comonad (w :: * -> *) where
@@ -183,11 +188,11 @@ instance Functor MyNonEmpty where
 instance Comonad MyNonEmpty where
   extract (a :| _) = a
 
-  duplicate all@(a :| [])
-    = all :| []
+  duplicate allTheThings@(_ :| [])
+    = allTheThings :| []
 
-  duplicate all@(a :| (b : bs))
-    = all :| (toList . duplicate $ (b :| bs))
+  duplicate allTheThings@(_ :| (b : bs))
+    = allTheThings :| (toList . duplicate $ (b :| bs))
 
 -- defer to list fold
 instance Foldable MyNonEmpty where
@@ -286,6 +291,7 @@ startZip
       , next  = [2,3]
       }
 
+endZip :: Zipper Int
 endZip = (applyNTimes 3 shuffleRight startZip)
 
 -- $> (shuffleLeft startZip) == startZip
@@ -311,6 +317,7 @@ instance Comonad Zipper where
         , next  = mapInd (\_ i -> (applyNTimes i shuffleRight) a) (next a)
         }
 
+duplicated :: Zipper (Zipper Int)
 duplicated = extend id startZip
 -- $> duplicated
 

@@ -20,9 +20,7 @@ import qualified Control.Monad.State as St
 import Control.Monad.Writer.Lazy hiding (Sum)
 import Data.Functor.Sum
 import Data.Kind
-import Data.Monoid (Product (..))
 import Network.Curl
-import System.Exit
 import Prelude
 
 --
@@ -155,7 +153,7 @@ consoleProg = do
   fWrite "What is your name?"
   a <- fRead
   fWrite $ "Sure? " ++ a
-  b <- fRead
+  _ <- fRead
   fWrite "Great."
 
 interpretIO :: Console a -> IO a
@@ -208,7 +206,7 @@ modify :: (s -> s) -> Reducer s ()
 modify f = liftF $ Modify f ()
 
 fetch :: Url -> Reducer s String
-fetch url = liftF $ Fetch url id
+fetch url' = liftF $ Fetch url' id
 
 get :: Reducer s s
 get = liftF $ Get id
@@ -237,7 +235,7 @@ interpretReducerState prog' =
       pure next
     Get next ->
       next <$> St.get
-    Fetch url next ->
+    Fetch _ next ->
       pure (next "test item")
 
 interpretStateIO :: Reducer State a -> St.StateT State IO a
@@ -251,8 +249,8 @@ interpretReducerStateIO prog' =
       pure next
     Get next ->
       next <$> St.get
-    Fetch url next -> do
-      (_, s) <- lift $ curlGetString (getUrl url) []
+    Fetch url' next -> do
+      (_, s) <- lift $ curlGetString (getUrl url') []
       pure (next s)
 
 -- snd <$> runStateT (interpretStateIO fetchAction) initialState
@@ -285,8 +283,8 @@ modify' f =
   liftF $ InR $ Modify f ()
 
 fetch' :: Url -> Combined s String
-fetch' url =
-  liftF $ InR $ Fetch url id
+fetch' url' =
+  liftF $ InR $ Fetch url' id
 
 get' :: Combined s s
 get' =
@@ -390,8 +388,8 @@ fetchF ::
   (Functor (big s), Lifty (big s) (ReducerF s)) =>
   Url ->
   Free (big s) String
-fetchF url =
-  liftF $ lifty $ (Fetch @s) url id
+fetchF url' =
+  liftF $ lifty $ (Fetch @s) url' id
 
 getF ::
   (Functor (big s), Lifty (big s) (ReducerF s)) =>
@@ -399,7 +397,7 @@ getF ::
 getF =
   liftF $ lifty $ Get id
 
-test0 :: Breadcrums (LumpF s) ConsoleF :~: 'Just '[R]
+test0 :: Breadcrums (LumpF s) ConsoleF :~: 'Just '[ 'R]
 test0 = Refl
 
 test1 :: String -> Lump s ()
@@ -408,11 +406,15 @@ test1 s = liftF $ lifty (Write s ())
 class Lifty (big :: Type -> Type) (small :: Type -> Type) where
   lifty :: small a -> big a
 
-type family Breadcrums (big :: Type -> Type) (small :: Type -> Type) :: Maybe [Direction] where
+type family
+  Breadcrums
+    (big :: Type -> Type)
+    (small :: Type -> Type) ::
+    Maybe [Direction] where
   Breadcrums a a = 'Just '[]
   Breadcrums (Sum x y) a =
-    MapDirection L (Breadcrums x a)
-      <|> MapDirection R (Breadcrums y a)
+    MapDirection 'L (Breadcrums x a)
+      <|> MapDirection 'R (Breadcrums y a)
   Breadcrums _ _ = 'Nothing
 
 type family (x :: Maybe k) <|> (y :: Maybe k) :: Maybe k where
@@ -430,15 +432,15 @@ instance (big ~ small) => Lifty' big small ('Just '[]) where
 
 instance
   (Lifty' l small ('Just xs)) =>
-  Lifty' (Sum l r) small ('Just (L ': xs))
+  Lifty' (Sum l r) small ('Just ('L ': xs))
   where
-  lifty' a = InL (lifty' @_ @_ @(Just xs) a)
+  lifty' a = InL (lifty' @_ @_ @('Just xs) a)
 
 instance
   (Lifty' r small ('Just xs)) =>
-  Lifty' (Sum l r) small ('Just (R ': xs))
+  Lifty' (Sum l r) small ('Just ('R ': xs))
   where
-  lifty' a = InR (lifty' @_ @_ @(Just xs) a)
+  lifty' a = InR (lifty' @_ @_ @('Just xs) a)
 
 instance (Lifty' big small (Breadcrums big small)) => Lifty big small where
   lifty = lifty' @_ @_ @(Breadcrums big small)

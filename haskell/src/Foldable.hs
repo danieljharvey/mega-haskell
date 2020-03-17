@@ -1,7 +1,5 @@
 module Foldable where
 
-import Data.Semigroup
-
 added :: Int
 added = foldr (\a b -> a + b) 0 [1, 2, 3, 4]
 

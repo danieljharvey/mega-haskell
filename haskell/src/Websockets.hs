@@ -26,12 +26,10 @@ import Data.Maybe
     fromMaybe,
     listToMaybe,
   )
-import Data.Monoid (mappend)
 import Data.String.Conversions
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Data.Traversable
 import GHC.Generics
 import qualified Network.WebSockets as WS
 
@@ -81,9 +79,9 @@ runChannel ::
   MVar ServerState ->
   Channel a ->
   IO ()
-runChannel broadcast' stateVar (Channel name go) = do
+runChannel broadcast' stateVar (Channel name go') = do
   print $ "Starting channel " <> name
-  go broadcast' stateVar
+  go' broadcast' stateVar
 
 data BasicUser
   = BasicUser
@@ -132,11 +130,11 @@ data StatefulProjection dataType stateType
       }
 
 createMVar :: Projection dataType stateType -> IO (StatefulProjection dataType stateType)
-createMVar projection = do
-  mvar <- newMVar (0, (def projection))
+createMVar projection' = do
+  mvar <- newMVar (0, (def projection'))
   pure $
     StatefulProjection
-      { projection = projection,
+      { projection = projection',
         value = mvar
       }
 
@@ -144,15 +142,15 @@ class RunProjection a where
   run :: EventList -> a -> IO ()
 
 instance (JSON.FromJSON dataType, Eq stateType, Show stateType, RunProjection rest) => RunProjection (StatefulProjection dataType stateType, rest) where
-  run events ((StatefulProjection projection value), rest) = do
+  run events' ((StatefulProjection projection' value'), rest) = do
     modifyMVar_
-      value
+      value'
       ( \(startKey, oldState) -> do
-          let (nextKey, newState) = runProjection events startKey oldState projection
+          let (nextKey', newState) = runProjection events' startKey oldState projection'
           when (newState /= oldState) $ print newState
-          pure (nextKey, newState)
+          pure (nextKey', newState)
       )
-    run events rest
+    run events' rest
 
 instance RunProjection () where
   run _ _ = pure ()
@@ -171,11 +169,11 @@ runProjection ::
   stateType ->
   Projection dataType stateType ->
   (Int, stateType)
-runProjection events startKey oldState projection =
-  ((nextKey events), newState)
+runProjection events' startKey oldState projection' =
+  ((nextKey events'), newState)
   where
     newState =
-      foldr (reducer projection) oldState (usefulEvents events)
+      foldr (reducer projection') oldState (usefulEvents events')
     filterOldEvents =
       M.filterWithKey (\k _ -> k >= startKey)
     usefulEvents =
@@ -189,9 +187,9 @@ runProjectionAndPrint ::
   EventList ->
   Projection dataType stateType ->
   IO ()
-runProjectionAndPrint events projection = do
-  print $ (title projection) <> ":: "
-  print $ (runProjection events 1 (def projection)) projection
+runProjectionAndPrint events' projection' = do
+  print $ (title projection') <> ":: "
+  print $ (runProjection events' 1 (def projection')) projection'
 
 nextKey :: EventList -> Int
 nextKey =
@@ -235,7 +233,7 @@ broadcast serverState message = do
 main :: IO ()
 main = do
   state <- newMVar newServerState
-  tickThread <- forkIO $ runChannel broadcast state tickChannel
+  _ <- forkIO $ runChannel broadcast state tickChannel
   WS.runServer "127.0.0.1" 9160 $ application state
 
 application :: MVar ServerState -> WS.ServerApp

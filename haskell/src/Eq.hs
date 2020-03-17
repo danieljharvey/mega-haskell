@@ -24,4 +24,5 @@ yep = isSameBetterHorse Average Average
 
 data LazyHorse = LazyTiny | LazyOther deriving (Eq)
 
+workingNow :: Bool
 workingNow = LazyTiny == LazyOther

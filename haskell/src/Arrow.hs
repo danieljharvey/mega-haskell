@@ -2,7 +2,7 @@
 
 module Arrow where
 
-import Control.Arrow
+import qualified Control.Arrow as Arr
 import Control.Category
 import Data.Maybe
 import Prelude hiding ((.), id)
@@ -10,7 +10,7 @@ import Prelude hiding ((.), id)
 newtype SimpleFunc a b
   = SimpleFunc {runF :: a -> b}
 
-instance Arrow SimpleFunc where
+instance Arr.Arrow SimpleFunc where
 
   arr = SimpleFunc
 
@@ -26,7 +26,7 @@ instance Category SimpleFunc where
 
   (SimpleFunc g) . (SimpleFunc f) = SimpleFunc (g . f)
 
-  id = arr id
+  id = Arr.arr id
 
 data Animal
   = Cat
@@ -48,16 +48,16 @@ cycleAnimal Horse = Cat
 cycleAnimal Other = Other
 
 readAnimalA :: SimpleFunc String Animal
-readAnimalA = arr readAnimal
+readAnimalA = Arr.arr readAnimal
 
 cycleAnimalA :: SimpleFunc Animal Animal
-cycleAnimalA = arr cycleAnimal
+cycleAnimalA = Arr.arr cycleAnimal
 
 animalTimeA :: SimpleFunc String (Animal, Animal)
 animalTimeA = proc str -> do
   animal <- readAnimalA -< str
   nextAnimal <- cycleAnimalA -< animal
-  returnA -< (animal, nextAnimal)
+  Arr.returnA -< (animal, nextAnimal)
 
 pairOfPets :: (Animal, Animal)
 pairOfPets = runF animalTimeA "dog"
@@ -67,10 +67,10 @@ askQuestion s = do
   putStrLn s
   getLine
 
-askQuestionK :: Kleisli IO String String
-askQuestionK = Kleisli askQuestion
+askQuestionK :: Arr.Kleisli IO String String
+askQuestionK = Arr.Kleisli askQuestion
 
-manyQuestionsK :: Kleisli IO String Int
+manyQuestionsK :: Arr.Kleisli IO String Int
 manyQuestionsK = proc str -> do
   first <- askQuestionK -< ("1. " ++ str)
   second <- askQuestionK -< ("2. " ++ str)
@@ -79,14 +79,18 @@ manyQuestionsK = proc str -> do
     if third == "dog"
       then do
         fourth' <- askQuestionK -< ("Bonus. " ++ str)
-        returnA -< Just fourth'
-      else returnA -< Nothing
-  returnA -< isDog first + isDog second + isDog third + maybe 0 isDog fourth
+        Arr.returnA -< Just fourth'
+      else Arr.returnA -< Nothing
+  Arr.returnA -<
+    isDog first
+      + isDog second
+      + isDog third
+      + maybe 0 isDog fourth
   where
     isDog :: String -> Int
     isDog s = if s == "dog" then 1 else 0
 
 questionTime :: IO ()
 questionTime = do
-  i <- runKleisli manyQuestionsK "Type dog"
+  i <- Arr.runKleisli manyQuestionsK "Type dog"
   putStrLn $ "You typed 'dog' " ++ show i ++ " times."
