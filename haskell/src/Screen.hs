@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Screen where
@@ -9,6 +11,10 @@ import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BS
 import Data.Function ((&))
+import Data.Hashable
+import Data.IORef
+import Data.Map
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import GHC.Generics
@@ -21,46 +27,86 @@ import Network.Wai.Middleware.Cors
 
 type StateType = Int
 
-data HTML a
-  = Div [T.Text] [HTML a]
+data HTML action
+  = Div [T.Text] [HTML action]
   | StringLit T.Text
-  | Button a T.Text
+  | Button action T.Text
 
-renderHTML :: (JSON.ToJSON a) => State a -> HTML a -> T.Text
+renderHTML :: (JSON.ToJSON action, JSON.ToJSON state, Hashable state) => state -> HTML action -> T.Text
 renderHTML st (Div classNames items) =
   "<div class='" <> T.intercalate "" classNames <> "'>" <> inner <> "</div>"
   where
     inner = T.concat $ renderHTML st <$> items
 renderHTML _ (StringLit s) = s
-renderHTML st (Button newState title) =
+renderHTML st (Button action' title) =
   "<button onclick={"
-    <> eventJS st newState
+    <> eventJS (getStateHash st) action'
     <> "}>"
     <> title
     <> "</button>"
 
 -- what should we run to do the update
-eventJS :: (JSON.ToJSON a) => State a -> a -> T.Text
-eventJS oldState i = "updateScreen(" <> json <> ")"
+eventJS :: (JSON.ToJSON action) => HashKey -> action -> T.Text
+eventJS stateHash action' = escapeT $ "function go() { updateScreen(" <> hashText <> ", " <> actionJson <> ")}"
   where
-    newState =
-      oldState {info = i}
-    json =
-      byteStringToText $ JSON.encode newState
+    hashText =
+      T.pack (show stateHash)
+    actionJson =
+      byteStringToText $ JSON.encode action'
 
-drawScreen :: ScreenDrawer StateType
+drawScreen :: StateType -> HTML Action
 drawScreen =
-  ScreenDrawer
-    ( \i ->
-        Div
-          ["main"]
-          [ Div [] [Button (i - 1) "-", Button (i + 1) "+"],
-            StringLit (T.pack $ show i)
-          ]
-    )
+  ( \st ->
+      Div
+        ["main"]
+        [ Div [] [Button Decrease "-", Button Increase "+"],
+          StringLit (T.pack $ show st)
+        ]
+  )
 
-newtype ScreenDrawer s
-  = ScreenDrawer {getScreenDrawer :: s -> HTML s}
+escape :: String -> String
+escape "" = ""
+escape ('\"' : t) = "\"" <> escape t
+escape (x : xs) = x : escape xs
+
+escapeT :: T.Text -> T.Text
+escapeT = T.pack . escape . T.unpack
+
+data Action
+  = NoOp
+  | Increase
+  | Decrease
+  deriving (Eq, Ord, Show, Generic, JSON.ToJSON, JSON.FromJSON)
+
+type Reducer state action = state -> action -> state
+
+reducer :: Reducer StateType Action
+reducer state action' = case action' of
+  NoOp -> state
+  Increase -> state + 1
+  Decrease -> state - 1
+
+type StateMap = Map HashKey JSON.Value
+
+newtype HashKey = HashKey {getHashKey :: Int}
+  deriving newtype (Eq, Ord, Show, JSON.ToJSON, JSON.FromJSON)
+
+---
+--
+getStateHash :: (Hashable a, JSON.ToJSON a) => a -> HashKey
+getStateHash = HashKey . Data.Hashable.hash . JSON.encode
+
+storeState :: (Hashable a, JSON.ToJSON a) => StateMap -> a -> StateMap
+storeState store a = insert (getStateHash a) (JSON.toJSON a) store
+
+fetchFromStore :: (JSON.FromJSON a) => StateMap -> HashKey -> Maybe a
+fetchFromStore store key = Data.Map.lookup key store >>= resultToJSON . JSON.fromJSON
+  where
+    resultToJSON a = case a of
+      JSON.Success a' -> Just a'
+      _ -> Nothing
+
+---
 
 byteStringToText :: BS.ByteString -> T.Text
 byteStringToText = decodeUtf8 . BS.toStrict
@@ -73,39 +119,36 @@ defaultConfig = Config "*" 8000
 
 main :: IO ()
 main = do
-  Warp.runSettings (makeSettings defaultConfig) application
+  stateMap <- newIORef mempty
+  Warp.runSettings (makeSettings defaultConfig) (application stateMap)
 
 application ::
+  IORef StateMap ->
   Wai.Application
-application =
+application stateMap =
   simpleCors $
     ( \request respond ->
-        requestHandler request
+        requestHandler stateMap request
           >>= respond
     )
 
 requestHandler ::
   (MonadIO m) =>
+  IORef StateMap ->
   Wai.Request ->
   m Wai.Response
-requestHandler request =
+requestHandler stateMap request =
   if Wai.requestMethod request == HTTP.methodPost
-    then (liftIO $ Wai.getRequestBodyChunk request) >>= handlePostRequest
+    then
+      (liftIO $ Wai.getRequestBodyChunk request)
+        >>= (handlePostRequest stateMap)
     else
       pure
         ( Wai.responseLBS
             HTTP.status400
             []
-            "No response!"
+            "Post responses only!"
         )
-
-data State a
-  = State
-      { info :: a,
-        divId :: T.Text,
-        apiUrl :: T.Text
-      }
-  deriving (Generic, JSON.FromJSON, JSON.ToJSON)
 
 data Output
   = Output
@@ -114,22 +157,36 @@ data Output
       }
   deriving (Generic, JSON.FromJSON, JSON.ToJSON)
 
+data Incoming action
+  = Incoming {hashKey :: HashKey, action :: action}
+  deriving (Generic, JSON.FromJSON, JSON.ToJSON)
+
 -- post means plop an event in the store
 handlePostRequest ::
   (MonadIO m) =>
+  IORef StateMap ->
   BS8.ByteString ->
   m Wai.Response
-handlePostRequest jsonStr = do
+handlePostRequest stateMap jsonStr = do
   case JSON.decode (BS.fromStrict jsonStr) of
-    Just a -> do
+    Just incoming -> do
+      state <- liftIO $ readIORef stateMap
       -- decode the request
       let status = HTTP.status200
       let headers = []
+      let oldState = fromMaybe 0 (fetchFromStore state (hashKey incoming))
+      let newState = reducer oldState (action incoming)
+      let newStateMap = storeState state newState
+      liftIO (print oldState)
+      liftIO (print (action incoming))
+      liftIO (print newState)
+      liftIO (print (length newStateMap))
+      liftIO $ writeIORef stateMap newStateMap
       let body =
             JSON.encode
               ( Output
                   { html =
-                      renderHTML a (getScreenDrawer drawScreen (info a)),
+                      renderHTML newState (drawScreen newState),
                     js = ""
                   }
               )
@@ -139,7 +196,7 @@ handlePostRequest jsonStr = do
         ( Wai.responseLBS
             HTTP.status400
             []
-            "No response!"
+            "Could not decode response!"
         )
 
 data Config
