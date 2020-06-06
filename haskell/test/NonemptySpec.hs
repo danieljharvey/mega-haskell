@@ -1,11 +1,9 @@
 module NonemptySpec where
 
-import Control.Exception (evaluate)
 import Nonempty
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "NonEmpty"
     $ it "third"

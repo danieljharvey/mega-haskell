@@ -3,9 +3,8 @@ module FreeSpec where
 import qualified Control.Monad.State as St
 import Free
 import Test.Hspec
-import Test.QuickCheck
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Free"
     $ describe "Applicative"

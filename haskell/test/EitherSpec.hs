@@ -2,16 +2,16 @@ module EitherSpec where
 
 import Control.Applicative
 import Control.Monad hiding (fail)
-import Control.Monad.Fail
-import Control.Monad.Identity hiding (fail)
-import Control.Monad.Zip
 import Data.Bifunctor
 import Data.Semigroup
 import Either
 import Test.Hspec
 import Prelude hiding (Either (..), fail)
 
--- spec :: IO ()
+plusOne :: Int -> Int
+plusOne = (+ 1)
+
+spec :: Spec
 spec =
   describe "Either" $ do
     it "Either functor with Right" $
@@ -37,7 +37,7 @@ spec =
     it "Keeps first Left" $
       Left 1 <> Left 2 `shouldBe` (Left 1 :: Either Int [Int])
     it "Folds a Left to the default" $
-      foldr (+) 1 (Left 10) `shouldBe` (1 :: Int)
+      foldr (+) 1 (Left (10 :: Int)) `shouldBe` (1 :: Int)
     it "Folds a Right and does addition" $
       foldr (+) 1 (Right 10) `shouldBe` (11 :: Int)
     it "Sequences a list of Rights" $
@@ -45,6 +45,6 @@ spec =
     it "Sequences a list with Lefts in" $
       sequence [Left 1, Right 1] `shouldBe` (Left 1 :: Either Int [Int])
     it "Bimap over Left" $
-      bimap (+ 1) (+ 1) (Left (1 :: Int)) `shouldBe` (Left 2)
+      bimap plusOne plusOne (Left (1 :: Int)) `shouldBe` (Left 2)
     it "Bimap over Right" $
-      bimap (+ 1) (+ 1) (Right (1 :: Int)) `shouldBe` (Right 2)
+      bimap plusOne plusOne (Right (1 :: Int)) `shouldBe` (Right (2 :: Int))

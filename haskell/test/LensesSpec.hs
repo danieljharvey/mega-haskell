@@ -1,12 +1,10 @@
 module LensesSpec where
 
-import Control.Exception (evaluate)
 import Control.Lens
 import Lenses
 import Test.Hspec
-import Test.QuickCheck
 
--- spec :: IO ()
+spec :: Spec
 spec = do
   describe "Manually getting data" $ do
     it "gets port" $

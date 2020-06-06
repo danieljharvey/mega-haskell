@@ -1,10 +1,9 @@
 module WriteSpec where
 
-import Control.Exception (evaluate)
 import Test.Hspec
-import Test.QuickCheck
 import Write
 
+spec :: Spec
 spec = do
   describe "Style" $ do
     it "Renders a Color" $ do

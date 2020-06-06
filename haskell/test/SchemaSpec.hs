@@ -44,27 +44,27 @@ test1 = Refl
 test2 :: FindPath 2 2 :~: '[2]
 test2 = Refl
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Schema" $ do
     describe "Decoding" $ do
       it "Decodes and converts Older to NewUser" $ do
-        let json = encode (Older "a" "b" "c")
-        let tryDecoding = decodeVia @"User" @0 @2 json
+        let jsonSample = encode (Older "a" "b" "c")
+        let tryDecoding = decodeVia @"User" @0 @2 jsonSample
         isJust tryDecoding `shouldBe` True
       it "Decodes and converts Older to Older" $ do
         let tryDecoding2 = decodeVia @"User" @0 @0 (encode (Older "bo" "f" "f"))
         isJust tryDecoding2 `shouldBe` True
       it "Can decode any Schema with WeakSchema" $ do
-        let json = encode (Older "don't" "do" "drugs")
-        let tryMaybeDecode = tryDecodeVia @"User" @0 @2 json
+        let jsonSample = encode (Older "don't" "do" "drugs")
+        let tryMaybeDecode = tryDecodeVia @"User" @0 @2 jsonSample
         isJust tryMaybeDecode `shouldBe` True
       it "Fails to convert a WeakSchema where the data is invalid" $ do
-        let json = encode (Older "ham" "man" "wham")
-        isJust (tryDecodeVia @"User" @0 @3 json) `shouldBe` False
+        let jsonSample = encode (Older "ham" "man" "wham")
+        isJust (tryDecodeVia @"User" @0 @3 jsonSample) `shouldBe` False
       it "Succeeds in converting a WeakSchema" $ do
-        let json = encode (Older "Me" "Yes" "dog")
-        isJust (tryDecodeVia @"User" @0 @3 json) `shouldBe` True
+        let jsonSample = encode (Older "Me" "Yes" "dog")
+        isJust (tryDecodeVia @"User" @0 @3 jsonSample) `shouldBe` True
     describe "Converting" $ do
       it "Updates an old object to new" $ do
         let older = Older "What" "Sure" "great"
@@ -73,6 +73,6 @@ spec =
 {-
     describe "Json decoding" $ do
       it "Creates a FromJSON instance" $ do
-        let json = encode (Older "Yeah" "Sure" "Why?")
-        isJust (decode @UserType json) `shouldBe` True
+        let jsonSample = encode (Older "Yeah" "Sure" "Why?")
+        isJust (decode @UserType jsonSample) `shouldBe` True
 -}

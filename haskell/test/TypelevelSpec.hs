@@ -1,12 +1,9 @@
 module TypelevelSpec where
 
-import Control.Exception (evaluate)
-import Control.Monad.Identity
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
-import Typelevel
+import Typelevel ()
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Typelevel"
     $ describe "what"

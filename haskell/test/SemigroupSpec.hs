@@ -1,18 +1,16 @@
 module SemigroupSpec where
 
-import Control.Exception (evaluate)
 import Semigroup
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Semigroups" $ do
     describe "list" $ do
       it "combines lists with semigroup" $
-        thirdList `shouldBe` [1, 2, 3, 4, 5, 6]
+        thirdList `shouldBe` ([1, 2, 3, 4, 5, 6] :: [Int])
       it "uses ++" $
-        [1, 2, 3] ++ [4, 5, 6] `shouldBe` [1, 2, 3, 4, 5, 6]
+        [1, 2, 3] ++ [4, 5, 6] `shouldBe` ([1, 2, 3, 4, 5, 6] :: [Int])
     describe "string"
       $ it "uses semigroup"
       $ thirdString `shouldBe` "GreatStuff"

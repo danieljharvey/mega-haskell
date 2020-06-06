@@ -1,11 +1,12 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module FunctorSpec where
 
-import Control.Exception (evaluate)
 import Functor
 import Test.Hspec
 import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Functor" $ do
     it "questionAdd john" $

@@ -3,7 +3,7 @@ module ReaderSpec where
 import Reader
 import Test.Hspec
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Reader" $ do
     it "Runs the most basic Reader" $

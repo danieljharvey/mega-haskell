@@ -1,12 +1,10 @@
 module SemilatticeSpec where
 
-import Control.Exception (evaluate)
 import Data.Semilattice.Join
 import Semilattice
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Semilattics" $ do
     describe "Haircut" $ do

@@ -1,12 +1,10 @@
 module TestingSpec where
 
-import Control.Exception (evaluate)
 import Control.Monad.Identity
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 import Testing
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Testing" $ do
     describe "time" $ do

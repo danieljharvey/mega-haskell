@@ -3,7 +3,7 @@ module ArrowSpec where
 import Arrow
 import Test.Hspec
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Arrow"
     $ it "Combines the pets"

@@ -1,11 +1,12 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module ApplicativeSpec where
 
 import Applicative
-import Control.Exception (evaluate)
 import Test.Hspec
 import Test.QuickCheck
 
--- spec :: IO ()
+spec :: Spec
 spec = do
   describe "intuitions" $ do
     it "listOfLists" $

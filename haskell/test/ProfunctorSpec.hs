@@ -1,11 +1,9 @@
 module ProfunctorSpec where
 
-import Control.Exception (evaluate)
 import Profunctor
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Bifunctor" $ do
     it "One" $

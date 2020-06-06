@@ -1,11 +1,10 @@
 module TraversalSpec where
 
-import Control.Exception (evaluate)
 import Data.Validation
 import Test.Hspec
 import Traversal
 
--- spec :: IO ()
+spec :: Spec
 spec = do
   describe "traversal" $ do
     it "foldMaps tree" $

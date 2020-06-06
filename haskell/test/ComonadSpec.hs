@@ -1,12 +1,9 @@
 module ComonadSpec where
 
 import Comonad
-import Control.Comonad.Store
-import Control.Exception (evaluate)
 import Test.Hspec
-import Test.QuickCheck
 
--- spec :: IO ()
+spec :: Spec
 spec = do
   describe "Which Comonad" $ do
     it "currentPosition" $

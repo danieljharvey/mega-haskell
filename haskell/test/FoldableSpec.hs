@@ -1,10 +1,9 @@
 module FoldableSpec where
 
-import Control.Exception (evaluate)
 import Foldable
 import Test.Hspec
-import Test.QuickCheck
 
+spec :: Spec
 spec =
   describe "Foldable" $ do
     it "added" $

@@ -5,7 +5,7 @@ import Monad
 import Test.Hspec
 import Prelude hiding (Monad)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Monad" $ do
     describe "Id" $ do
@@ -25,7 +25,7 @@ spec =
       it "head3 with empty" $
         head3 ([] :: [[[Int]]]) `shouldBe` Nothing
       it "head3 with stuff" $
-        head3 [[[1, 2, 3]]] `shouldBe` Just 1
+        head3 [[[1, 2, 3]]] `shouldBe` Just (1 :: Int)
     describe "Either" $ do
       it "Is empty" $
         validate "" `shouldBe` Left IsEmpty

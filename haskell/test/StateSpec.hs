@@ -1,11 +1,10 @@
 module StateSpec where
 
-import Control.Exception (evaluate)
 import Control.Monad.State
 import State
 import Test.Hspec
-import Test.QuickCheck
 
+spec :: Spec
 spec = do
   describe "className"
     $ it "Does the bare minimum"

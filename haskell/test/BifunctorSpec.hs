@@ -1,11 +1,9 @@
 module BifunctorSpec where
 
 import Bifunctor
-import Control.Exception (evaluate)
 import Test.Hspec
-import Test.QuickCheck hiding (NonEmpty)
 
--- spec :: IO ()
+spec :: Spec
 spec =
   describe "Bifunctor" $ do
     describe "Regular function" $ do
