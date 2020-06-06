@@ -47,6 +47,8 @@ library
                   , Parsing
                   , ContractTests
                   , Screen
+                  , Path
+                  , Generics
   hs-source-dirs:   haskell/src
   build-depends:    base == 4.*
                   , lens
