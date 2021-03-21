@@ -26,15 +26,22 @@ packages:
   original:
     hackage: semilattices-0.0.0.4
 - completed:
-    hackage: vinyl-0.12.0@sha256:6136e2608c2c4be0c112944fb0f5a6a0df56b50adec12eb1b7240258abfcf9b1,3790
+    hackage: async-timer-0.2.0.0@sha256:e1504aa0fb5932cb07498ec548180aba9e03a3e7f5d2c810bf3dce75fbdd34d6,2048
     pantry-tree:
-      size: 1857
-      sha256: aeb9e0e1a3bbe2b1f048a096430d240964a31c6936a1da89f4b32e931eba9d69
+      size: 420
+      sha256: f6e0f4929cf25a1b6e732cbc9c7a8902e922d8c989c3cf9e0623052847857c94
   original:
-    hackage: vinyl-0.12.0
+    hackage: async-timer-0.2.0.0@sha256:e1504aa0fb5932cb07498ec548180aba9e03a3e7f5d2c810bf3dce75fbdd34d6,2048
+- completed:
+    hackage: unliftio-core-0.1.2.0@sha256:b0a7652ffce2284a6cebe05c99eb60573a8fb6631163f34b0b30a80b4a78cb23,1081
+    pantry-tree:
+      size: 328
+      sha256: 9d970bf5f98e68e8fc129b04d6c9d8eb1e641c7556ffd0f0a168a259335b6fd7
+  original:
+    hackage: unliftio-core-0.1.2.0@sha256:b0a7652ffce2284a6cebe05c99eb60573a8fb6631163f34b0b30a80b4a78cb23,1081
 snapshots:
 - completed:
-    size: 468735
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2020/1/25.yaml
-    sha256: 191ce765b625c0b0bbda9c9105ed7fc32127ac7b4d662696b43792e645c6a362
-  original: nightly-2020-01-25
+    size: 565712
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/17/6.yaml
+    sha256: 4e5e581a709c88e3fe26a9ce8bf331435729bead762fb5c190064c6c5bb1b835
+  original: lts-17.6

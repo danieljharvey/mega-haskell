@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: nightly-2020-01-25
+resolver: lts-17.6
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -42,7 +42,8 @@ extra-deps:
   - functor-combinators-0.1.1.0@sha256:388d7e16826e1beb524a2a721e99ddfc0fd478488bfafe330d60a35556199558
   - trivial-constraint-0.5.1.0@sha256:80f052aa9527ed23fe4bf5066535d5a393a1573b9c193a4cddd2c51ab12b310f
   - semilattices-0.0.0.4 
-  - vinyl-0.12.0
+  - async-timer-0.2.0.0@sha256:e1504aa0fb5932cb07498ec548180aba9e03a3e7f5d2c810bf3dce75fbdd34d6,2048
+  - unliftio-core-0.1.2.0@sha256:b0a7652ffce2284a6cebe05c99eb60573a8fb6631163f34b0b30a80b4a78cb23,1081
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
